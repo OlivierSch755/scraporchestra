@@ -193,13 +193,13 @@ Version 24.19.0 happens to be the latest release at the time of writing this doc
 
 ```sh
 # download app
-wget https://github.com/OlivierSch755/scraporchestra/archive/refs/heads/main.tar.gz
+wget -O scraporchestra.tar.gz https://github.com/OlivierSch755/scraporchestra/archive/refs/heads/main.tar.gz
 
 # extract archive
-tar -xzf scraporchestra-main.tar.gz
+tar -xzf scraporchestra.tar.gz
 
 # remove archive
-rm scraporchestra-main.tar.gz
+rm scraporchestra.tar.gz
 
 # move app directory in /opt
 sudo mv scraporchestra-main /opt/scraporchestra
@@ -209,10 +209,6 @@ cd /opt/scraporchestra
 
 # install Node.js application
 npm install 
-
-# create projects directory in /udata
-mkdir -p /udata/scraporchestra/projects
-
 ```
 
 ### Installing optional components 
