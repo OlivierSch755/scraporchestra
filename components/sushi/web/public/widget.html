@@ -1,0 +1,69 @@
+<template x-if="config">
+
+	<div x-data="sushi(config)">
+	
+		<section>
+		
+			<h4>Config</h4>
+			
+			<label>
+				<input type="text" x-model = "config.osc_ip"></input>
+				OSC send IP
+			</label>
+			
+			<label>
+				<textarea aria-describedby="sushi_env_hint" x-model="envLines"></textarea>
+				ENV
+			</label>
+			<small id="sushi_env_hint" class="label_hint">ENV directives should be written as
+<pre>KEY1=VALUE1
+[EMPTY LINE]
+KEY2=VALUE2
+...</pre>	
+			</small>
+			
+			<footer>
+				<button :disabled="requestInProgress" @click="submitConfig">Update</button>
+				<button @click="show_env_as_json()">Show ENV as JSON</button>
+			</footer>
+
+		</section>
+		
+		<section>
+		
+			<h4>Editor</h4>
+			
+			<template x-if="component.editor_open === false">
+				<div>
+					<button 
+						@click="async (e)=>{
+							$el.disabled = true;
+							await fetch( '/components/sushi/api/editor/start', {method:'post'} );
+							$el.disabled = false;
+						}"
+					>Start Editor</button>
+				</div>
+			</template>
+		
+			<template x-if="component.editor_open === true">
+				<div>
+					<button 
+						@click="async (e)=>{
+							$el.disabled = true;
+							await fetch( '/components/sushi/api/editor/stop', {method:'post'} );
+							$el.disabled = false;
+						}"
+					>Stop Editor</button>
+					<a href="/components/sushi/editor">Open Sushi Editor</a>
+				</div>
+			</template>
+			</div>
+		
+		
+		</section>
+		
+		
+	</div>
+		
+	
+</template>

@@ -1,0 +1,17 @@
+{
+  "name": "sushi",
+  "version": "0.0.8",
+  "description": "",
+  "license": "MIT",
+  "author": "Olivier Schwach",
+  "type": "commonjs",
+  "main": "sushi.js",
+  "private" : true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.14.4",
+    "protobufjs": "^8.6.5"
+  }
+}

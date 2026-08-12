@@ -1,0 +1,23 @@
+{
+  "name": "web",
+  "version": "0.2.0",
+  "description": "",
+  "license": "MIT",
+  "author": "Olivier Schwach",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.2.0",
+    "ws": "^8.21.0",
+    "alpinejs": "^3.15.12"
+  },
+  "exports": {
+    ".": "./server.js",
+    "./component_controller_class": "./component_web_controller_class.js",
+    "./routes/*": "./routes/*.js"
+  }
+}

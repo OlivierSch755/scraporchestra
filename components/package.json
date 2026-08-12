@@ -1,0 +1,17 @@
+{
+  "name": "components",
+  "version": "0.3.1",
+  "description": "",
+  "license": "MIT",
+  "author": "Olivier Schwach",
+  "type": "commonjs",
+  "exports": {
+    ".": "./package.json",
+    "./*": "./*/*.js",
+    "./*/web/controller": "./*/web/controller.js"
+  },
+  "main": "generate_cache.js",
+  "scripts": {
+    "cache": "node ./generate_cache.js"
+  }
+}

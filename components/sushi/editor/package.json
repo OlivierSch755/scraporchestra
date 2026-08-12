@@ -1,0 +1,29 @@
+{
+  "name": "sushi_editor",
+  "version": "0.4.6",
+  "description": "",
+  "license": "MIT",
+  "author": "Olivier Schwach",
+  "type": "commonjs",
+  "main": "sushi_live_editor.js",
+  "private" : true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.14.4",
+    "express": "^5.2.1",
+    "protobufjs": "^8.6.3",
+    "ws": "^8.21.0"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./async_validation": "./lib/async_validation.js",
+    "./proxy": "./lib/proxy.js",
+    "./gateway": "./lib/gateway.js",
+    "./request_limiter": "./lib/request_limiter.js",
+    "./stream_ws_multiplexer": "./lib/stream_ws_multiplexer.js",
+    "./commons": "./lib/commons.js"
+  }
+  
+}

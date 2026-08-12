@@ -1,0 +1,244 @@
+
+[todo] { color :orange;}
+
+:root{
+	--gap : 0.3rem;
+	--gap2 : calc( var(--gap) * 2 );
+	--gap3 : calc( var(--gap) * 3 );
+	--gap4 : calc( var(--gap) * 4 );
+	
+	--radius : 6px;
+	--ui_unit : 44px;
+	
+	--main-color : darkslategray;
+	--main-color2 : #526C6C;
+	
+}
+
+
+h1, h2, h3, h4, h5, h6, dl, dd {
+  margin: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  min-height:1lh;
+}
+
+[x-text]{
+	min-height:1lh;
+}
+
+.sr-only {
+	clip: rect(1px, 1px, 1px, 1px);
+	clip-path: inset(50%);
+	height: 1px;
+	width: 1px;
+	margin: -1px;
+	overflow: hidden;
+	padding: 0;
+	position: absolute;
+} 
+
+button.open:before {
+  content : '-';
+}
+
+button.closed:before {
+  content : '+';
+}
+
+
+header{
+	display:grid;
+	grid-template: 1fr / 1fr max-content;
+}
+
+
+.notification:popover-open {
+	position: fixed;
+	padding: var(--gap2);
+	display: flex;
+	flex-direction: column-reverse;
+	align-items: flex-end;
+	margin: 0;
+	inset: unset;
+	bottom: 0;
+	right: 0;
+	border: 0;
+	background: rgba(0,0,0,0.2);
+	gap: var(--gap2);
+	box-shadow: -1px -1px var( --gap2 ) var(--main-color);
+} 
+
+.notification::backdrop{
+	background:unset;
+}
+
+.toast {
+	padding: var(--gap);
+	background: buttonFace;
+	cursor: pointer;
+	position:relative;
+	min-height: var(--ui_unit);
+	align-content: center;
+	min-width: var(--ui_unit);
+}
+
+.toast:after {
+  content: '';
+  display: block;
+  border-bottom: solid var(--gap);
+  bottom: 0;
+  position: absolute;
+  width: 100%;
+  left: 0;
+  mix-blend-mode: overlay;
+  animation: shrink var(--toast-duration) ease-out forwards;
+  
+}
+
+
+@keyframes shrink {
+  from {
+	width : 100%;
+  }
+
+  to {
+	width : 0%;
+  }
+}
+			
+
+
+label, .entry {
+	align-items: center;
+	gap: 1ch;
+	display: grid;
+	grid-template: 1fr / auto 1fr;
+}
+
+
+label + .label_hint, entry, .label_hint {
+  display: block;
+  border: solid 2px var(--main-color);
+  padding: var(--gap);
+  border-top: 0;
+  box-sizing: content-box;
+  margin-top: calc( var(--gap2) * -1);
+}
+
+button, input, select{
+	min-width:var(--ui_unit)!important;
+	min-height:var(--ui_unit)!important;
+}
+
+label > input, label > select {
+  margin: 0;
+}
+
+dialog{
+	min-width: min(100vw, max(40vw, 320px));
+	padding: 0 var(--gap3) var(--gap) var(--gap3);
+	border:solid 1px;
+	margin: auto !important;
+	position:relative;
+}
+
+dialog:not(:has(.dialog_title))::before {
+	content: '';
+	display: inline-block;
+
+}
+
+dialog:not(:has(.dialog_title))::before, dialog > .dialog_title {
+  margin: var(--gap2) 0 var(--gap) 0;
+  min-height: var(--ui_unit);
+}
+
+
+dialog > .modal_close_btn {
+	position: sticky;
+	float:right;
+	top: 0;
+	margin-top: 0;
+	margin-bottom: var(--gap3);
+	transform: translate( var(--gap3) );
+	border: 0;
+	border-bottom: solid 1px;
+	border-left: solid 1px;
+	border-bottom-left-radius: var(--radius);
+}
+
+
+@media (pointer: coarse) {
+
+}
+
+
+dialog::backdrop {
+	background: currentColor;
+	filter: invert(1);
+	opacity: 0.8;
+	border-top-left-radius: var(--radius);
+}
+
+
+section, form {
+	border:solid 1px;
+	padding : 0 var(--gap2);
+	border-top-right-radius:var(--radius);
+	border-bottom-left-radius:var(--radius);
+}
+
+form.mono_input {
+  border: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+section {
+  margin-bottom: var(--gap2);
+}
+
+article{
+	border:solid 1px;
+	padding : 0 var(--gap2);
+}
+
+main > *, article > *, form > *, section > *, .section > * {
+	margin : var(--gap2) 0;
+}
+
+.section{
+	margin : 0;
+	padding : 0;
+}
+
+
+dt{
+	font-weight:bold;
+}
+
+dl {
+	display: grid;
+	grid-template: 1fr / auto 1fr;
+	gap: var(--gap2) 1ch;
+}
+
+dl > div {
+	grid-column: 1 / 2;
+}
+
+p, li {
+  margin: var(--gap2) 0;
+}
+
+
+label, footer{
+	background:var(--main-color);
+	padding: var(--gap);
+}
+	
+main > footer {
+	background: linear-gradient(90deg, rgb(88, 149, 149) 0%, rgb(47, 79, 79) 50% 80%);
+}

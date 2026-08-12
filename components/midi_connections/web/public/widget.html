@@ -1,0 +1,245 @@
+<template x-if="$store.midi_connections.loaded">
+
+		<div x-data="MidiComponent">
+		
+			<section >
+				<h4>Midi Rules</h4>
+				
+				<p x-show="rules.length">
+					This project expects the following MIDI ports to exist and be connected as follow : 
+				</p>
+				
+				<p x-show="!rules.length">
+					This project has no rules regarding how midi connections should be made.
+				</p>
+				
+				<p x-show="!rules.length">
+					Below are listed the midi ports that are currently available.
+					Use it to manage MIDI connections. 
+					Once you create a connection it becomes persistent (will auto-reconnect on unplug/replug).
+				</p>
+				
+				<p x-show="!rules.length">
+					Do not forget to <strong>save project configuration</strong> once you are done. 
+				</p>
+				
+				<template x-for="rule of rules">
+					<article>
+						
+						<dl>
+						
+							<div>
+								<dt>From</dt>
+								<dd x-text="rule.sender_client_name"></dd>
+								<dd x-text="rule.sender_port_name"></dd>
+							</div>
+						
+							<div>
+								<dt>To</dt>
+								<dd x-text="rule.receiver_client_name"></dd>
+								<dd x-text="rule.receiver_port_name"></dd>
+							</div>
+							
+							<div>
+								<dt>Optional</dt>
+								<dd x-text="rule.optional?'Yes':'No'"></dd>
+							</div>
+						
+							<div>
+								<dt>Status</dt>
+								<dd x-text="rule.passed?'OK':'MISSING'"></dd>
+							</div>
+						
+						</dl>
+						
+						<footer>
+							<button 
+								:disabled="requestInProgress" 
+								@click="midi.requestRuleDeletion(rule)"
+							>Delete Rule</button>
+						</footer>
+					
+					</article>
+				</template>
+				
+			</section>
+			
+			<section>
+				<h4>Midi Ports</h4>
+				
+				<template x-for="port of graph.ports">
+				
+					<article class="midi_port">
+					
+						<dl>
+							<dt>Client Name</dt>
+							<dd x-text="graph.clients[port.client_id].name"></dd>
+							
+							<dt>Port Name</dt>
+							<dd x-text="port.name"></dd>
+							
+							<dt>Direction</dt>
+							<dd x-text="port.direction"></dd>
+							
+							<dt>Type</dt>
+							<dd x-text="['System', 'Hardware' , 'Software'][graph.clients[port.client_id].type]"></dd>
+							
+						</dl>
+					
+						<!-- If this port can connect to other ports, show ui to manage this -->
+						<template x-if="(port.direction === 'DUPLEX' || port.direction === 'OUT') && port.ui_connections.ui_to.length">
+							
+							<details>
+							
+								<summary> 
+									Sending to 
+									<strong x-text="port.ui_connections.ui_to.length"></strong>
+									ports
+								</summary>
+							
+								<ul>
+									<template x-for="ui_to of port.ui_connections.ui_to">
+										<li>
+											<span x-text="midi.getPortNameWithClientName(ui_to)"></span>
+											<button 
+												:disabled="requestInProgress"
+												@click="midi.requestPortDisconnect(port, ui_to);"
+											>Disconnect</button>
+										</li>
+									</template>
+								</ul>
+							</details>
+						</template>		
+						
+						<template x-if="(port.direction === 'DUPLEX' || port.direction === 'IN') && port.ui_connections.ui_from.length">
+							
+							<details>
+							
+								<summary> 
+									Receiving from 
+									<strong x-text="port.ui_connections.ui_from.length"></strong>
+									ports
+								</summary>
+							
+								<ul>
+									<template x-for="ui_from of port.ui_connections.ui_from">
+										<li>
+											<span x-text="midi.getPortNameWithClientName(ui_from)"></span>
+											<button 
+												:disabled="requestInProgress"
+												@click="midi.requestPortDisconnect(port, ui_from);"
+											>Disconnect</button>
+										</li>
+									</template>
+								</ul>
+							</details>
+						</template>
+						
+						<footer>
+							<template x-if="port.direction === 'DUPLEX' || port.direction === 'OUT'">
+								<button 
+									@click="midi.prepareUiToPortDialog(port)"
+									command="show-modal" 
+									commandfor="midi_connections_connect_modal" 
+								>Send to ...</button>
+							</template>
+							
+							<template x-if="port.direction === 'DUPLEX' || port.direction === 'IN'">
+									<button 
+										@click="midi.prepareUiFromPortDialog(port)"
+										command="show-modal" 
+										commandfor="midi_connections_connect_modal" 
+									>Receive from...</button>
+								
+							</template>
+						</footer>
+					
+						
+						<!-- Dialog to create a new connection -->
+						<dialog 
+							id="midi_connections_connect_modal" 
+					
+							x-data="{
+								dialog : midi.DialogConnectionModal
+							}"
+						>
+							<button 
+								class="modal_close_btn"
+								type="button" 
+								commandfor="midi_connections_connect_modal" 
+								command="close" 
+							>Close</button>
+							
+						
+							<form  @submit.prevent="midi.requestPortConnect( Object.fromEntries( new FormData($el) ) )">
+							
+							
+								<template x-if="dialog.sender">
+									
+										<p>
+											<input 
+												type="hidden"
+												name="sender_identifier" 
+												:value="midi.getPortIdentifier(dialog.sender)"
+											></input>
+											
+											This operation will take the midi output from   
+											<strong x-text="midi.getPortNameWithClientName(dialog.sender)"></strong>
+											and send it to the selected port : 
+										<p/>
+									
+								</template>
+								
+								<template x-if="dialog.receiver">
+										<p>
+											<input 
+												type="hidden"
+												name="receiver_identifier"
+												:value="midi.getPortIdentifier(dialog.receiver)"
+											></input>
+											
+											This operation will feed into 
+											<strong x-text="midi.getPortNameWithClientName(dialog.receiver)"></strong>
+											the midi ouptut from selected port : 
+										<p/>
+										
+										
+								</template>
+								
+								<label>
+									<select	:name="dialog.sender ? 'receiver_identifier' : 'sender_identifier'" >
+										<template x-for="port_option of dialog.options">
+											<option 
+												:value="midi.getPortIdentifier(port_option)" 
+												x-text="midi.getPortNameWithClientName(port_option)">
+											</option>
+										</template>
+									</select>
+									<span x-text="dialog.sender ? 'Receiver port' : 'Sender port'"></span>
+								</label>
+								<div>
+									<label>
+										<input name="optional" type="checkbox"/>
+										Optional
+									</label>	
+								</div>
+								<input type="submit"/>
+							
+							</form>
+							
+						</dialog>
+						
+					</article>
+						
+				</template>
+					
+			</section>
+			
+			
+		
+			
+		</div>
+			
+
+	
+</template>

@@ -1,0 +1,24 @@
+{
+  "name": "scraporchestra",
+  "version": "0.0.9",
+  "description": "",
+  "license": "MIT",
+  "author": "Olivier Schwach",
+  "type": "commonjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "private": true,
+  "workspaces": [
+    "engine",
+    "components",
+    "components/*",
+    "web"
+  ],
+  "bin": {
+    "webapp": "./bin/webapp.js"
+  },
+  "exports": {
+    ".": "./package.json"
+  }
+}

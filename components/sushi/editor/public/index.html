@@ -1,0 +1,1071 @@
+<!doctype html>
+
+<html>
+
+	<head>
+		<meta name="color-scheme" content="light dark">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<link rel="stylesheet" type="text/css" href="/css/global.css"/>
+		<title>Sushi Editor</title>
+		<script type="module" src="./js/editor_app.js"></script>
+		
+		<style>	
+
+			.move_processor_item {
+				display: grid;
+				grid-gap: var(--gap2);
+			}
+			
+			.move_processor_item > div {
+				display: grid;
+				grid-template: 1fr / 1fr 1fr;
+				min-height: var(--ui_unit);
+				align-items: center;
+				border: solid 1px;
+				padding: 0 var(--gap2);
+			}
+			.move_processor_item > div.current {
+				background:var(--main-color);
+			}
+						
+						
+			[x-data="pluginView"] > header {
+				grid-template: 1fr / 1fr 1fr 1fr;
+				gap: var(--gap);
+			}
+			[x-data="pluginView"] > header > input {
+				grid-column: 1/4;
+			}
+
+
+
+			[x-data="pluginView"] li:nth-child(odd) {
+			  background: var(--main-color);
+			}
+
+
+			[x-data="pluginView"] li:nth-child(even) {
+			  background:  #526C6C
+			}
+
+			[x-data="pluginView"] li {
+				display: grid;
+				grid-template: 48px auto/ 1fr 1fr 1fr;
+				align-items: center;
+				gap: 0 var(--gap2);
+			}
+			[x-data="pluginView"] button {
+				word-wrap: break-word;
+			}
+
+
+			[x-data="pluginView"] ul {
+				margin:0;
+				padding:0;
+			}
+						
+			
+
+			.parameter:not([loaded]){
+				opacity : 0.5;
+			}
+			
+			
+		</style>
+		
+	</head>
+	
+	<body x-data>
+		<main>
+			<h1>Sushi Web Editor</h1>
+
+			<!-- transport -->
+			<section x-data="togglable_section(false, 2, 'Transport')">
+			
+				<template x-if="open">
+					<div class="section" x-data="TransportSection">
+						<article @change="submit($event)" @input="flagInput($event)">
+							<label>
+								<input name="numerator" x-model.number="time_signature.numerator" type="number"></input>
+								<span>Numerator <small>(Time signature)</small></span>
+							</label>
+							
+							<label>
+								<input name="denominator" x-model.number="time_signature.denominator" type="number"></input>
+								<span>Denominator <small>(Time signature)</small></span>
+							</label>
+							
+							<label>
+								<input name="tempo" x-model.number="tempo" type="number"></input>
+								Tempo
+							</label>
+							
+							<label>
+								<select name="sync_mode" x-model.number="sync_mode.mode" type="number">
+									<template x-for="(id,mode) in syncModes" :key="id">
+										<option :selected="sync_mode.mode == id" :value="id" x-text="mode"></option>
+									</template>
+								</select>
+								Sync Mode
+							</label>
+						</article>
+						
+						<article>
+							<div class="entry">
+								<button @click="$store.views.midiClock = true">MIDI Clock</button>
+								Enable/disable MIDI Clock output
+							</div>
+							
+						
+						</article>
+						
+						
+						<footer hidden :hidden="!open">
+							<button x-ref="playBtn">Play</button>
+							
+						</footer>
+						
+						<dialog x-data="dialog('midiClock')">
+						
+							<h3 class="dialog_title">Managing MIDI clock outputs</h3>
+							<template x-if="midiClock">
+								<section x-data="midi_clk" @change="submit">
+									<template x-for="port of ports" :key="port.id">
+										<label>
+											<input type="checkbox" :data-port="port.id" x-model="port.enabled"/>
+											<span>Port <span x-text="port.id"></span></span>
+										</label>
+									</template>
+								</section>
+							</template>
+						
+						</dialog>
+						
+						
+					</div>
+				</template>
+			
+			</section>
+		
+			<!-- tracks -->
+			<section x-data="togglable_section(false, 2, 'Tracks')">
+			
+				<template x-if="open">
+					<template x-for="track of $store.sushi.tracks.load()" :key="track.id">
+						
+						<article x-show="open">
+							<h3 x-text="track.info.value.name"></h3>
+							<footer>
+								<button @click="$store.views.track = track">Config</button>
+								<button @click="$store.views.track_midi = track">MIDI</button>
+								<button x-lock="api" @click="$store.api.requestDeleteTrack(track)">Delete</button>
+							</footer>
+						</article>
+						
+					</template>
+				</template>
+				
+				<footer hidden :hidden="!open">
+					<button @click="$store.views.create_track = {}">Add</button>
+				</footer>
+				
+			</section>
+		
+		</main>
+	
+		<!-- Toast messages  -->
+		<div id="toast" class="notification" popover="manual" x-init="$el.showPopover();">
+			<template x-for=" toast of $store.status.current_messages" :key="toast.id">
+				<div
+				  :class="[
+					'toast',
+					`toast-${toast.type}`
+				  ]"
+				  x-text="toast.message"
+				  :style="{
+					'--toast-id': `toast-${toast.id}`
+				  }"
+				  @click="toast.remove()"
+				  >
+				</div>
+			</template>
+		</div>	
+				
+		<dialog x-data="dialog('track_midi')" >
+		
+			<h4 class="dialog_title">MIDI connections for track <em x-text="track_midi?.info.value?.name"></em></h4>
+
+			<template x-if="track_midi">
+				<div x-data = "{track : track_midi, processor : track_midi}">
+				<!-- Midi Connections (input) -->
+					<template x-for="(direction, index) of ['input', 'output']">
+						<section x-data="connectionsList({track, direction})">
+						
+							<h3>Keyboard <span x-text="direction"></span> connections</h3>
+							
+							<template x-for="connection of connections" :key="connection.id">
+								<article >
+									<dl>
+										<div class="entry">
+											<dt>Channel</dt>
+											<dd x-text="channelValuesById[connection.channel.channel]"></dd>
+										</div>
+										<div class="entry">
+											<dt>Port</dt>
+											<dd x-text="connection.port"></dd>
+										</div>
+										<div class="entry">
+											<dt>Raw Midi</dt>
+											<dd x-text="connection.raw_midi ? 'Yes' : 'No'"></dd>
+										</div>
+									
+									</dl>
+									<footer>
+										<button x-lock='api' @click="deleteConnection(connection)">Delete</button>
+									</footer>
+								</article>
+							</template>
+							
+							<template x-if="(connections).length === 0">
+								<p>No connections</p>
+							</template>
+							
+							<footer>
+								<button @click="$store.views['add_midi_connection_' + direction] = 1">Add</button>
+							</footer>
+							
+							<dialog x-data="dialog('add_midi_connection_' + direction)" :aria-labelledby="'add-midi-title-' + direction">
+
+								<h4 class="dialog_title" :id="'add-midi-title-' + direction">Adding MIDI <span x-text="direction"></span> connection to track <em x-text="track.info.value?.name"></em> </h4>
+								<div class="section">
+									
+									
+									<form @submit.prevent="submit(Object.fromEntries(new FormData($event.target))); close(); ">
+										
+										<label>
+											<select name="port">
+												<template x-for="port of ports" :key="port.id">
+													<option :value="port.id" x-text="port.id"></option>
+												</template>
+											</select>
+											Port
+										</label>
+									
+										<label>
+											<select name="channel">
+												<template x-for="([name, value]) of channelsEntries">
+													<option :value="value" x-text="name"></option>
+												</template>
+											</select>
+											Channel
+										</label>
+									
+										<label x-show="direction === 'input'">
+											<input name="raw_midi" type="checkbox"></input>
+											Raw midi
+										</label>
+										<hr>
+										<footer>
+											<button type="submit">Add</button>
+										</footer>
+									
+									</form>
+								
+								</div>
+							</dialog>
+						</section>
+						
+					</template>
+					
+					<section> 
+						<h3>Control Change (CC) connections</h3>
+						<template x-load_template="CCconnectionsList"></template>
+					</section>
+					<!-- Midi Tester -->
+					<section x-data="{open : false}">
+					
+						<header>
+							<h3>MIDI Tester</h3>
+							<button @click="open = !open;" x-text="open?'-':'+'">+</button>
+						</header>
+					
+						<template x-if="open">
+							<div class="section" x-data="midiTesting(track)">
+								
+								<label>
+									<input x-model="channel" type="range" min="0" max="15" step="1"></input>
+									<span>Channel <small x-text="parseInt(channel) + 1"></small></span>
+								</label>
+								
+								<label>
+									<input x-model="note" type="range" min="0" max="127" step="1"></input>
+									<span>Note <small x-text="notes[note].name"></small></span>
+								</label>
+								
+								<label>
+									<input x-model="velocity" type="range" min="0" max="1" :step="(1/127)"></input>
+									<span>Velocity <small x-text="Math.round(velocity * 127)"></small></span>
+								</label>
+								
+								<footer hidden :hidden="!open">
+									<button 
+										:disabled="[note,channel,track_id].includes(null)"
+										@pointerdown="$store.api.requestNoteOn(track_id,channel,note,velocity)"
+										@pointerup="$store.api.requestNoteOff(track_id,channel,note,velocity)"
+									>Play test note</button>
+									
+									<button @click="$store.views.midi_kb_playground = { track_id, channel, velocity }">Keyboard Playground</button>
+									
+								</footer>
+							
+								<dialog x-data="dialog('midi_kb_playground')" >
+									<template x-if="midi_kb_playground">
+										<div class="section" x-data = "KbPlayGround(midi_kb_playground)" >
+										
+											<h3>Midi keyboard playground</h3>
+											
+											<label>
+												<output :value="note_offset"></output> 
+												<span>chromatic offset 
+													(<span x-text="notes[lowest_note()]?.name"></span>) 
+												</span> 
+											</label>
+											
+											<p tabindex="0" x-init="$nextTick(()=>$el.focus())">
+												Press Escape or click close button to exit.<br>
+												Use your computer keyboard to send midi messages to Sushi.<br>
+												Layout follows piano keyboard <kbd>ASDF</kbd>/<kbd>QSDF</kbd>... map to white keys while  <kbd>WETY</kbd>/<kbd>ZETY</kbd>... map to black keys.<br>
+												Use left and right <kbd>Ctrl</kbd> key to change note offset by a half step.
+											</p>
+											
+										</div>
+									</template>
+								</dialog>
+						
+							</div>
+						</template>
+					</section>
+				
+				</div>
+			</template>		
+		</dialog>
+						
+		<dialog x-data="dialog('track')" >
+			<h3 class="dialog_title">Track <em x-text="value?.info.value?.name"></em></h3>
+			<template x-if="value">
+				<div x-data="{track : value}">
+
+					<!-- track Info -->
+					<section>
+						<h3>Info</h3>
+						<dl>
+							<div class="entry">
+								<dt>Buses</dt>
+								<dd x-text="track.info.value.buses"></dd>
+							</div>
+							
+							<div class="entry">
+								<dt>Channels</dt>
+								<dd x-text="track.info.value.channels"></dd>
+							</div>
+							
+							<div class="entry">
+								<dt>Thread</dt>
+								<dd x-text="track.info.value.thread"></dd>
+							</div>
+					
+							<div class="entry">
+								<dt>Type</dt>
+								<dd x-text="track.typeHumanReadable"></dd>
+							</div>
+						</dl>
+					</section>
+		
+					<!-- track Parameters -->
+					<section x-data="togglable_section(true, 3, 'Parameters')">
+						<template x-if="open">
+							<div class="section" x-show="open" x-data="parameterList( track )"></div>
+						</template>
+					</section>
+		
+					<!-- track Properties -->
+					<section x-data="togglable_section(false, 3, 'Properties')">
+						
+						<template x-if="open">
+							<div x-init="track.properties.load()">
+								<template x-for="property of track.properties.value" :key="property.id">
+									<label x-init="property.state.load()">
+										<input :value="property.state.loaded ? property.state.value : 'loading...'" type="text"/>
+										<span x-text='property.info.value.name'></span>
+									</label>
+								</template>
+								<p x-show="track.properties.value.length === 0">No properties</p>
+							</div>
+						</template>
+					
+						
+					</section>
+		
+					<!-- track processors -->
+					<section x-data="togglable_section(true, 3, 'Processors')">
+						<template x-if="open" x-init="track.processors.load()">
+							<div class="section">
+								<template x-for="processor of track.processors.value" :key="processor.id" >
+									<article>
+									
+										<h4 x-text="processor.info.value.name"></h4>
+										<div x-text="processor.info.value.label"></div>
+										
+										<footer>
+											<button @click="$store.views.processor = processor">Open</button>
+											<button @click="$store.views.moving_processor = {processor, track}">Move</button>
+											<button @click="$store.views.processor_midi = processor">MIDI</button>
+											<button x-lock="api" @click="$store.api.requestDeleteProcessorFromTrack(processor, track)">Delete</button>
+										</footer>
+										
+									</article>
+								</template>
+								<div x-show="track.processors.value?.length === 0">	
+									No processors.
+								</div>
+							</div>
+						</template>
+						
+						<footer x-show="open">
+							<button @click="$store.views.adding_processor_on_track = value">Add</button>
+						</footer>
+						
+					</section>
+
+					<!-- Track Inputs Connections -->
+					<section x-data="TrackAudioConnections(track, false, 3, 'Audio Connections')">
+						<div x-show="open">
+							<section >
+								<h4>Inputs</h4>
+								<template x-for="connection in connections.input" :key="connection.id">
+									<article>
+										<dl>
+											<div class="entry">
+												<dt>Engine Channel</dt>
+												<dd x-text="connection.engine_channel"></dd>
+											</div>
+
+											<div class="entry">
+												<dt>Track Channel</dt>
+												<dd x-text="connection.track_channel"></dd>
+											</div>
+										</dl>
+										
+										<footer>
+											<button x-lock="api" @click="disconnectInput(connection)">Disconnect</button>
+										</footer>
+										
+									</article>
+								</template>
+									
+								<div x-show="no_input">	
+									No connections.
+								</div>
+									
+								<footer>
+									<button @click="$store.views.adding_audio_connection = await createConnectionBuilderView( 'input' )">Add</button>
+									<button x-lock="api" x-show="!no_input" @click="disconnectAllInputs()" >Disconnect all</button>
+								</footer>	
+							</section>	
+							
+							<section >
+								<h4>Outputs</h4>
+								<template x-for="connection in connections.output" :key="connection.id">
+									<article>
+										<dl>
+											<div class="entry">
+												<dt>Engine Channel</dt>
+												<dd x-text="connection.engine_channel"></dd>
+											</div>
+
+											<div class="entry">
+												<dt>Track Channel</dt>
+												<dd x-text="connection.track_channel"></dd>
+											</div>
+										</dl>
+										
+										<footer>
+											<button x-lock="api" @click="disconnectOutput(connection)">Disconnect</button>
+										</footer>
+										
+									</article>
+								</template>
+									
+								<div x-show="no_output">	
+									No connections.
+								</div>
+									
+								<footer>
+									<button @click="$store.views.adding_audio_connection = await createConnectionBuilderView( 'output' )">Add</button>
+									<button x-lock="api" x-show="!no_output" @click="disconnectAllOutputs()" >Disconnect all</button>
+								</footer>	
+							</section>			
+						</div>
+						
+						<dialog x-data="dialog('adding_audio_connection')">
+						
+							<h3 class="dialog_title"> Adding new  audio <strong x-text="direction"></strong> on track <em x-text="track?.info.value?.name"></em></h3>
+							
+							<template x-if="adding_audio_connection">
+							
+								<section>
+								
+									<label>
+										<select x-model.number="connection_factory.engine_channel">
+											<template x-for="engine_channel of audioChannels" :key="engine_channel">
+												<option :value="engine_channel" x-text="engine_channel"></option>
+											</template>
+										</select>
+										Engine Channel
+									</label>
+								
+									<label>
+										<select x-model.number = "connection_factory.track_channel">
+											<template x-for="track_channel of trackAudioChannels" :key="track_channel">
+												<option :value="track_channel" x-text="track_channel"></option>
+											</template>
+										</select>
+										Track Channel
+									</label>
+									
+									<footer>
+										<button x-lock="api" @click ="submit">Add</button>
+									</footer>
+								</section>
+							
+							
+							</template>
+						
+						</dialog>
+						
+						
+						
+					</section>
+					
+				</div>
+			</template>		
+		</dialog>
+						
+		<dialog x-data="dialog('adding_processor_on_track')">
+
+			<h3 class="dialog_title"> Adding processor on track <em x-text="value?.info.value?.name"></em></h3>
+		
+			<template x-if="value">
+
+				<section x-data="pluginAdder(value)">
+				
+					<div class="section" x-show="selected_plugin === null">
+				
+						<h4>Step 1 : select plugin</h4>
+						
+						<label>
+							<select x-model.number="plugin_factory.type.type">
+								<template x-for="(id, typename) of PluginTypes">
+									<option :selected="id === plugin_factory.type.type" :value="id" x-text="typename"></option>
+								</template>
+							</select>
+							Type
+						</label>
+						
+						<label>
+							<input x-model="plugin_factory.name" type="text"/>
+							Name
+						</label>
+						
+						<div class="error" x-show="nameTakenError">This name is already taken by another processor / track</div>
+						
+						<label>
+							<input 
+								:disabled="[PluginTypes.LV2, PluginTypes.VST2X].includes(plugin_factory.type.type)"
+								x-model="plugin_factory.uid"
+								type="text"
+								:list="plugin_factory.type.type === PluginTypes.INTERNAL ? 'internal_uids' : ''"
+								/>
+							Uid
+						</label>
+						
+						<label>
+							<input :disabled="plugin_factory.type.type === PluginTypes.INTERNAL" x-model="plugin_factory.path" type="text"></input>
+							Path
+						</label>
+						
+						
+						
+						<datalist id="internal_uids">
+							<template x-for="uid of internal_plugins_uids">
+								<option :value="uid"></option>
+							</template>
+						</datalist>
+						
+						<footer>
+							<button @click="selected_plugin = await verifyUniqueName(plugin_factory)">Confirm</button>
+							<button @click="$store.views.plugin_list_helper = 1">Show List</button>
+						</footer>
+						
+						<dialog x-data="dialog('plugin_list_helper')">
+							<h4 class="dialog_title">List of plugins (may be incomplete)</h4>
+							<div class="section" x-data="pluginView">
+							
+								<header>
+									<input role="search" type="search" x-model="filter" placeholder="Search...">
+									<button @click="sort = 'name'">Name</button>
+									<button @click="sort = 'category'">Category</button>
+									<button @click="sort = 'editor'">Editor</button>
+								</header>
+
+								<ul>
+									<template x-for="plugin in plugins" :key="plugin.id">
+										<li>
+											<button x-lock="api" @click="selected_plugin = await forceUniqueNameOnProcessor(plugin); close()" x-text="plugin.name"></button>
+											<span x-text="plugin.category"></span>
+											<span>
+												<span x-text="plugin.editor"></span>
+												<small x-text="plugin.type"></small>
+											</span>
+										</li>
+									</template>
+								</ul>
+							</div>
+						</dialog>
+
+					</div>
+						
+						<div  x-show="selected_plugin" class="section">
+							<h4>Step 2 : select position</h4>
+							
+							<template x-for="processor of await track.processors.load()" :key="processor.id">
+							
+								<div class="move_processor_item">
+							
+									<button 
+										x-lock="api"
+										@click="$store.api.requestAddProcessorOnTrack(selected_plugin, track, processor)"
+									>	
+										Add here
+									</button>
+							
+								
+									<div> 
+										<span x-text="processor.info.value.name"></span>
+										<span x-text="processor.info.value.label"></span>
+									</div>
+									
+								</div>
+								
+							</template>
+							
+							<template x-if="track.processors.loaded">
+								<div class="move_processor_item">
+									<button 
+										x-lock="api"
+										@click="$store.api.requestAddProcessorOnTrack(selected_plugin, track, null)"
+									>
+										Add here
+									</button>
+								</div>
+							</template>
+						
+						</div>
+							
+				</section>
+				
+			</template>
+				
+		</dialog>
+		
+		<dialog x-data="dialog('moving_processor')">
+		
+			<h3 class="dialog_title"> Moving processor <span x-text="moving_processor?.info?.value.name"></span></h3>
+			<template x-if="moving_processor">
+			
+				<section x-data="{
+					source_processor : moving_processor.processor,
+					source_track : moving_processor.track
+				}">
+					
+					
+					<template x-for="track of await $store.sushi.tracks.load()" :key="track.id">
+						
+						<article x-init="await track.processors.load();">
+						
+							<h4>Track <em x-text="track.info.value?.name"></em></h4>
+							
+							<template x-for="(processor, index) of await track.processors.load()" :key="processor.id">
+							
+								<div class="move_processor_item" x-data="{ 
+									is_current :( processor === source_processor),
+									is_after : track.processors.value[index-1] === source_processor
+								}">
+								
+									<template x-if="!is_current && !is_after">
+										<button 
+											x-lock="api"
+											@click="$store.api.requestMoveProcessor(source_processor, source_track, track, processor)"
+										>	
+											Move here
+										</button>
+									</template>
+								
+									<div :class="is_current?'current':''"> 
+										<span x-text="processor.info.value.name"></span>
+										<span x-text="processor.info.value.label"></span>
+									</div>
+									
+								</div>
+								
+							</template>
+							
+							<template x-if="track.processors.loaded && track.processors.value.at(-1) !== source_processor">
+								<div x-init="console.log('ok ? ')" class="move_processor_item">
+									<button 
+										x-lock="api"
+										@click="$store.api.requestMoveProcessor(source_processor, source_track, track)"
+									>
+										Move here
+									</button>
+								</div>
+							</template>
+							
+							
+							
+						</article>
+					</template>
+					
+				</section>
+				
+			</template>
+				
+		</dialog>
+		
+		<dialog	x-data="dialog('create_track')">
+			<h3 class="dialog_title">New track</h3>
+			<section x-data="trackAdder()">
+				
+				<label>
+					<select x-model.number="type">
+						<template x-for="(id, typename) of TrackTypes">
+							<option :selected="id === type" :value="id" x-text="typename"></option>
+						</template>
+					</select>
+					Type
+				</label>
+				
+				<div>
+					
+					<label>
+						<input x-model="name" required type="text"/>
+						Name
+					</label>
+					
+					<label x-show="is_regular && !multibus">
+						<input x-model.number="channels" required type="number"/>
+						Channels
+					</label>
+					
+					<label x-show="is_regular && multibus">
+						<input x-model.number="buses" required type="number"/>
+						Buses
+					</label>
+					
+					<label x-show="is_regular">
+						<input  x-model.number="thread" type="number"/>
+						Thread
+					</label>
+					
+					<label x-show="is_regular">
+						<input x-model="multibus" type="checkbox"/>
+						Multibus
+					</label>
+					
+					<footer>
+						<button :disabled="submit_disabled" @click="submit" >Create Track</button>
+					</footer>
+					
+				</div>
+			
+			</section>
+
+		</dialog>
+		
+		<dialog	x-data="dialog('processor')">
+		
+			<h4 class="dialog_title">Processor <em x-text="processor?.info.value?.name"></em></h4>
+
+			<template x-if="processor">
+				<div>
+				
+					<!-- proc bypass -->
+					<section>
+						<label x-data="processorBypassButton(processor)">
+							<input 
+								@change="submit" 
+								type="checkbox" 
+								:disabled="!loaded"
+								x-model="bypassed"
+								x-lock="api"
+							/>
+							Bypass
+						</label>	
+					</section>
+					
+					<section x-data="programViewer(processor, true, 3)">
+						<template x-if="open && loaded">
+							<div>
+								<label x-show="loaded && programs.length">
+									<select :disabled="busySync" x-model.number="current_program_id" @change="submit">
+										<template x-for="program of programs">
+											<option x-text="cleanUpName(program.name)" :value="program.id.program" :selected="current_program_id === program.id.program"></option>
+										</template>
+									</select>
+								</label>
+								<p x-show="loaded && programs.length === 0">No programs</p>
+							</div>
+						</template>
+					</section>
+					
+					<!-- proc parameters -->
+					<section x-data="togglable_section(true, 3, 'Parameters')">
+						<template x-if="open">
+							<div class="section" x-show="open" x-data="parameterList( processor )" data-parameterlist></div>
+						</template>
+					</section>
+					
+					<!-- proc properties -->
+					<section x-data="propertyViewer(processor, false, 3)">
+
+					<template x-if="open && loaded">
+						<div>
+							<template x-for="property of properties" :key="property.id">
+								<label>
+									<!-- <input :value="property.state.value" @change="$store.api.requestSetPropertyValue(property, $event.target.value)" type="text"/> -->
+									<input 
+										:disabled="busySync"
+										:value="property.state.value" 
+										@change="submit(property, $event.target.value)" 
+										@keydown="checkEnterAndSubmit(property, $event)" 
+										type="text"
+									/>
+									<span x-text='property.info.value.name'></span>
+								</label>
+							</template>
+							<p x-show="properties.length === 0">No properties.</p>
+						</div>
+					</template>
+					
+					</section>
+					
+					
+					
+				</div>
+			</template>
+			
+		</dialog>
+		
+		<dialog x-data="dialog('processor_midi')">
+
+			<h4 class="dialog_title">MIDI connections for processor <em x-text="processor_midi?.info.value?.name"></em></h4>
+		
+			<template x-if="processor_midi">
+				<div class="section" x-data = "{processor : processor_midi}">
+					
+					<!-- MIDI Program changes -->
+					
+					<section x-data="PCconnectionsList(processor)"> 
+						<h5>Program Change (PC) connections</h5>
+						
+						<template x-for="connection of connections" :key="connection.id">
+							<article>
+								<dl>
+									<div class="entry">
+										<dt>Channel</dt>
+										<dd x-text="channelValuesById[connection.channel.channel]"></dd>
+									</div>
+									<div class="entry">
+										<dt>Port</dt>
+										<dd x-text="connection.port"></dd>
+									</div>
+
+								</dl>
+								<footer>
+									<button x-lock='api' @click="deleteConnection(connection)">Delete</button>
+								</footer>
+							</article>
+						</template>
+
+						<template x-if="connections.length === 0">
+							<p>No connections.</p>
+						</template>
+						
+
+						<footer>
+							<button x-lock='api' @click="$store.views.processor_add_pc = 1">Add</button>
+						</footer>
+
+						<dialog x-data="dialog('processor_add_pc')">
+							<h6 class="dialog_title">Adding PC connection on processor <em x-text="processor.info.value?.name"></em></h6>
+							<template x-if="processor_add_pc">
+								<form @submit.prevent="submit(Object.fromEntries(new FormData($event.target))); close(); ">
+		
+									<label>
+										<select name="port">
+											<template x-for="port of ports" :key="port.id">
+												<option :value="port.id" x-text="port.id"></option>
+											</template>
+										</select>
+										Port
+									</label>
+								
+									<label>
+										<select name="channel">
+											<template x-for="([name, value]) of channelsEntries">
+												<option :value="value" x-text="name"></option>
+											</template>
+										</select>
+										Channel
+									</label>
+								
+
+									<footer>
+										<button x-lock='api'>Submit</button>
+									</footer>
+								</form>
+							</template>
+						</dialog>
+
+					</section>
+					
+					<!-- MIDI Control changes -->
+					<section> 
+						<h5>Control Change (CC) connections</h5>
+						<template x-load_template="CCconnectionsList"></template>
+					</section>
+				</div>
+			</template>
+
+		</dialog>
+
+		<template id="CCconnectionsList">
+			
+			<div x-data="CCconnectionsList(processor)">
+				<template x-for="connection of connections" :key="connection.id">
+					<article>
+						<dl>
+							<div class="entry">
+								<dt>Parameter</dt>
+								<dd x-text="await getConnectionParameterName(connection)"></dd>
+							</div>
+							<div class="entry">
+								<dt>Channel</dt>
+								<dd x-text="channelValuesById[connection.channel.channel]"></dd>
+							</div>
+							<div class="entry">
+								<dt>Port</dt>
+								<dd x-text="connection.port"></dd>
+							</div>
+							<div class="entry">
+								<dt>CC Number</dt>
+								<dd x-text="connection.cc_number"></dd>
+							</div>
+							<div class="entry">
+								<dt>Min Range</dt>
+								<dd x-text="connection.min_range"></dd>
+							</div>
+							<div class="entry">
+								<dt>Max Range</dt>
+								<dd x-text="connection.max_range"></dd>
+							</div>
+
+							<div class="entry">
+								<dt>Relative mode</dt>
+								<dd x-text="connection.relative_mode ? 'Yes' : 'No'"></dd>
+							</div>
+
+						</dl>
+						<footer>
+							<button x-lock='api' @click="deleteConnection(connection)">Delete</button>
+						</footer>
+					</article>
+				</template>
+				
+				<template x-if="connections.length === 0">
+					<p>No connections</p>
+				</template>
+				
+				<footer>
+					<button x-lock='api' @click="$store.views.processor_add_cc = 1">Add</button>
+				</footer>
+				
+				<dialog x-data="dialog('processor_add_cc')">
+
+					<h5 class="dialog_title">Adding CC connection on processor <em x-text="processor?.info.value?.name"></em></h5>
+					<template x-if="processor_add_cc">
+						<form @submit.prevent="submit(Object.fromEntries(new FormData($event.target))); close(); ">
+
+							<label>
+								<select required x-model.number="connection_factory.parameter.parameter_id">
+									<option value="" disabled :selected="connection_factory.parameter.parameter_id === null">Pick target parameter</option>
+									<template x-for="parameter of parameters" :key="parameter.id">
+										<option :value="parameter.id" x-text="`${parameter.info.value.label}`"></option>
+									</template>
+								</select>
+								Parameter
+							</label>
+
+							<label>
+								<select name="port" x-model.number="connection_factory.port">
+									<template x-for="port of ports" :key="port.id">
+										<option :value="port.id" x-text="port.id"></option>
+									</template>
+								</select>
+								Port
+							</label>
+						
+							<label>
+								<select 
+									name="channel" x-model.number="connection_factory.channel.channel">
+									<template x-for="([name, value]) of channelsEntries" :key="value">
+										<option :value="value" x-text="name" ></option>
+									</template>
+								</select>
+								Channel
+							</label>
+							
+							<label>
+								<input x-model.number="connection_factory.cc_number" name="cc_number" type="number" min="0" max = "119" >
+								CC Number
+							</label>
+						
+							<label>
+								<input x-model.number="connection_factory.min_range" step="0.005" name="min_range" type="number" min="0" max ="1">
+								Min range
+							</label>
+						
+							<label>
+								<input x-model.number="connection_factory.max_range" step="0.005" name="max_range" type="number" min="0" max ="1">
+								Max range
+							</label>
+						
+							<label>
+								<input x-model.number="connection_factory.relative_mode" name="relative_mode" type="checkbox" >
+								Relative mode
+							</label>
+						
+
+							<footer>
+								<button x-lock='api' type="submit">Add</button>
+							</footer>
+						</form>
+					</template>
+				</dialog>
+			</div>
+		</template>
+
+	</body>
+		
+		
+</html>

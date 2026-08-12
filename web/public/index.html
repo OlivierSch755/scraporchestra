@@ -1,0 +1,176 @@
+<!doctype html>
+
+
+
+
+<html>
+
+	<head>
+		<meta name="color-scheme" content="light dark">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<link rel="stylesheet" type="text/css" href="/css/global.css"/>
+		<title x-data x-text="$store.engine?.project?.name ? 'Project' +' '+ $store.engine?.project?.name : 'No project' "></title>
+		<script type="module" src="/js/app.js"></script>
+	</head>
+	<body>
+	
+		<div  
+			x-data="{ 
+				get engine(){ return $store.engine},
+				get project(){ return $store.engine.project},
+				get components(){ return $store.components},
+				get project_manager(){ return $store.project_manager},
+				get status(){ return $store.status},
+			}"
+			x-init="await engine.ensure(); await components.ensure()"
+		>
+		
+			<template x-if="engine.loaded && project ">
+			
+				<main>
+				
+					<h1>Project <em x-text="project.name"></em></h1>
+
+					<dl>
+						<dt>State</dt>
+						<dd x-text="engine.getStateHumanReadable(project.state)"></dd>
+					</dl>
+					
+					
+					<!-- PROJECT COMPONENTS SECTION -->
+					
+					<section >
+					
+						<h2>Components</h2>
+						
+						<template x-for="(component,name) of project.components">
+						
+							<article x-data="{
+								get config(){ return  project.config.components[component.name] }, 
+								id : 'component_modal_' + component.name
+							}">
+
+								<h3 x-text="component.name"></h3>
+
+								<dl>
+									<div class="entry">
+										<dt>State</dt>
+										<dd x-text="engine.getStateHumanReadable(component.state)"></dd>
+									</div>
+								</dl>
+
+								<footer>
+									<button @click="$store.views[id] = 1">Configure</button>
+									<button @click="$store.project_manager.requestDeleteComponent(project, component )">Delete</button>
+								</footer>
+
+								<dialog x-data="dialog(id)">
+									<h4 class="dialog_title">Component <em x-text="component.name"></em></h4>
+									<div x-init="await components.loadComponentWidget(component.name, $el)"></div>
+								</dialog>
+
+							</article>
+						</template>
+			
+						<dialog x-data="dialog('add_component')">
+							<h4>Adding components in project <em x-text="project.name"></em></h4>
+							<form @submit.prevent="project_manager.requestAddComponents( project, new FormData($el).getAll('selected_components')  )">
+								
+								<label>
+									<select  aria-describedby="component_select_hint" multiple name="selected_components">
+										<template x-for="(component,name) of components.items">
+											<option x-text="name" :value="name" :disabled="!!engine.getProjectComponent(name)"></option>
+										</template>
+									</select>
+									Add components
+								</label>
+								<small  id="component_select_hint" class="label_hint">You can select multiple components to install in one go.</small>
+								<footer>
+									<input type="submit"></input>
+								</footer>
+							</form>
+						</dialog>
+						
+					</section>
+	
+					<footer>
+						<button @click="engine.requestProjectClose" >Close Project</button>
+							<button @click="project_manager.saveConfig()">Save configuration</button>
+							<button
+								@click="$store.views.add_component = 1"
+								:disabled="!$store.components.projectCanLoadComponent()"
+							>Add component</button>
+					</footer>
+					
+				</main>
+			</template>
+			
+			<template x-if="engine.loaded && !project">
+				<main>
+					<h1>No project loaded</h1>
+					
+						<section x-init="await project_manager.ensure()">
+						
+							<h2>Projects</h2>
+							
+							<template x-for="project_name in project_manager.projects">
+								<article :id="'project_' + project_name" >
+									<h3 x-text="project_name"></h3>
+									<button x-lock="engine" @click="engine.requestProjectStart(project_name)">
+										Load project
+									</button>
+									<button x-lock="project_manager" @click="project_manager.requestDeleteProject(project_name)">
+										Delete project
+									</button>
+								</article>
+							</template>
+					
+							<footer x-show="project_manager.loaded">
+								<button @click="$store.views.new_project = 1">Add</button>
+							</footer>
+
+							<dialog x-data="dialog('new_project')">
+								<h2 class="dialog_title">New Project</h2>
+								<form @submit.prevent="project_manager.requestNewProject( Object.fromEntries ( new FormData($el) ) ).then( ()=>close())">
+									<label>
+										<input aria-describedby="project_name_hint" pattern="[A-Za-z0-9_\-]+" type="text" name="project_name" required></input>
+										Project Name
+									</label>
+									<small  id="project_name_hint" class="label_hint">Use only letters, numbers, underscores ( _ ) and hyphens ( - ).</small>
+									<footer>
+										<button type="submit">Add</button>
+									</footer>
+								</form>
+							</dialog>
+									
+									
+						</section>
+						
+					
+				</main>
+			</template>
+		
+		</div>
+		
+		<!-- Toast messages  -->
+		<div id="toast" class="notification" popover="manual" x-init="$el.showPopover();" role="status" aria-live="polite">
+			<template x-for=" toast of $store.status.current_messages" :key="toast.id">
+				<div
+				  :class="[
+					'toast',
+					`toast-${toast.type}`
+				  ]"
+				  x-text="toast.message"
+				  :style="{
+					'--toast-id': `toast-${toast.id}`
+				  }"
+				  @click="toast.remove()"
+				  >
+				</div>
+			</template>
+		</div>	
+		
+		
+	</body>
+
+</html>

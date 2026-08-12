@@ -1,0 +1,17 @@
+[Unit]
+Description=scraporchestra starting service
+After=load-drivers.service
+ConditionPathExists=/dev/audio_evl
+
+[Service]
+Type=simple
+RemainAfterExit=yes
+LimitRTPRIO=infinity
+LimitMEMLOCK=infinity
+LimitSTACK=infinity
+WorkingDirectory=/opt/scraporchestra
+ExecStart=/usr/local/bin/node /opt/scraporchestra/bin/webapp.js
+User=mind
+
+[Install]
+WantedBy=multi-user.target

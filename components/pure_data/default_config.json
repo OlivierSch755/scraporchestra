@@ -1,0 +1,5 @@
+{
+	"midiindev" : "1",
+	"midioutdev" : "1",
+	"abstractions_path" : ""
+}

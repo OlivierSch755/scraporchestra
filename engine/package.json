@@ -1,0 +1,27 @@
+{
+  "name": "engine",
+  "version": "0.1.2",
+  "description": "",
+  "license": "MIT",
+  "author": "Olivier Schwach",
+  "type": "commonjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "private":true,
+  "devDependencies": {},
+  "exports" : {
+	"." : "./engine.js",
+	"./project": "./project.js",
+    "./component": "./component/component.js",
+    "./component/*": "./component/*.js",
+    "./project_manager": "./project_manager.js",
+    "./dispatcher": "./dispatcher.js",
+    "./application": "./application.js"
+  },
+  "bin" : {
+	  "cli.engine" : "./cli/engine_cli.js",
+	  "cli.project" : "./cli/project_cli.js"
+  }
+  
+}

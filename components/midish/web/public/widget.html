@@ -1,0 +1,501 @@
+<template x-if="config">
+
+	<div x-data="midish(config)" class="section">
+	
+		<style>
+			.midish_filter_rule_container {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				grid-column: 1/3;
+			}
+		</style>
+	
+		<template x-if="component.session_restore_failed">
+			<article class="error">
+				<h4>Could not load Midish session</h4>
+				
+				<p>
+					Midish could not load the saved session. 
+					<br>
+					This may happen after importing a MIDI file with extreme values (tempo...).
+					<br> 
+					Unfortunately there is no fix for this.
+					<br>
+					Either load a new MIDI file or delete the broken session file. 
+					<br>
+					<br>
+					Below is the generated error : 
+				</p>
+				<hr>
+					<pre x-text="component.session_restore_failed" ></pre>
+				<hr>
+				
+				<footer>
+					<button @click="deleteFile">Delete file</button>
+				</footer>
+				
+			</article>
+		</template>
+	
+	
+		<!-- Session START -->
+		<template x-if="$store.midish.session_loaded">
+		
+			<section>
+				
+				<!-- INFO -->
+				<h4>Current Session</h4>
+				<dl>
+					<div class="entry">
+						<dt>Length <small>(bars)</small></dt>
+						<dd x-text="$store.midish.session.length"></dd>
+					</div>
+					<div class="entry">
+						<dt>Position</dt>
+						<dd >
+							<span x-text="$store.midish.session.position.measure"></span>
+							:
+							<span x-text="$store.midish.session.position.beat"></span>
+							:
+							<span x-text="$store.midish.session.position.tick"></span>
+						</dd>
+					</div>
+				</dl>
+				
+				<!-- SEEK CTRL -->
+				<form @submit.prevent="requestSeekToBarFormSubmit($el)" class="mono_input">
+					<label>
+						<input :value="$store.midish.session.state.curpos" type="number" name="bar"/>
+						Go to bar
+					</label>
+				</form>
+				
+				<!-- SELECTION LENGTH CTRL -->
+				<form @submit.prevent="requestSetSelectionLengthFormSubmit($el)" class="mono_input">
+					<label>
+						<input :value="$store.midish.session.state.curlen" type="number" name="selection_length"/>
+						Selection Length
+					</label>
+				</form>
+				
+				<!-- LOOP CTRL -->
+				<label>
+					<input type="checkbox" :checked="$store.midish.session.loop"  @change.prevent="requestSetLoopMode($el.checked)" class="mono_input">
+					Loop
+				</label>
+			
+				<!-- SLAVE MODE -->
+				<label>
+					<input 
+						type="checkbox" 
+						aria-describedby="midish_slave_hint" 
+						:checked="slave" 
+						@change="requestSetSlaveMode($el.checked)"
+						:disabled="requestInProgress"
+					>
+					Slave mode
+				</label>
+				<small id="midish_slave_hint" class="label_hint">
+					To use with Sushi as a master Clock. Do not forget to :
+					<ul>
+						<li>Enable MIDI clock output in Sushi</li>
+						<li>Make sure Sushi MIDI output is connected to Midish bridge input.</li>
+						<li>Hit play in Sushi (either via editor or OSC)</li>
+					</ul>
+				</small>
+				
+				<!-- METRONOME -->
+				<section x-data="togglable_section(false, 4, 'Metronome')">
+					<template x-if="open">
+						<form @submit.prevent="requestSetMetronomeFormSubmit($el)" x-data="{get metro(){return $store.midish.session.metronome}}">
+							<h5>Metronome</h5>
+							<label>
+								
+								<select required name="enabled" x-model="metro.enabled">
+									<option value="off">OFF</option>
+									<option value="on">ON</option>
+									<option value="rec">REC</option>
+								</select>
+								Enabled
+							</label>
+						
+							<hr>
+							
+							<label>
+								<input x-model.number="metro.low.channel" required name="low_chan" type="number"></input>
+								Low channel
+							</label>
+							
+							<label>
+								<input x-model.number="metro.low.note" required name="low_note" type="number"></input>
+								Low note
+							</label>
+							
+							<label>
+								<input x-model.number="metro.low.velocity" required name="low_vel" type="number"></input>
+								Low velocity
+							</label>
+							
+							<hr>
+							
+							<label>
+								<input x-model.number="metro.high.channel" required name="high_chan" type="number"></input>
+								High channel
+							</label>
+							
+							<label>
+								<input x-model.number="metro.high.note" required name="high_note" type="number"></input>
+								High note
+							</label>
+							
+							<label>
+								<input x-model.number="metro.high.velocity" required name="high_vel" type="number"></input>
+								High velocity
+							</label>
+							
+
+							<footer>
+								<button>Update</button>
+							</footer>
+						</form>
+					</template>
+				</section>
+				
+				
+				
+				<!-- TRACKS -->
+				<section x-data="togglable_section(false, 4, 'Tracks')">
+					<template x-if="open">
+						<template x-for="(track, id) in $store.midish.session.state.tracklist" :key="id">
+						
+							<article x-data="midish_track">
+								<dl>
+									<div class="entry">
+										<dt>Name</dt>
+										<dd x-text="track.name"></dd>
+									</div>
+									
+									<div class="entry">
+										<dt>Channels</dt>
+										<dd x-text="track.channels.map(x=>x.channel).join(',')"></dd>
+									</div>
+									
+									<div class="entry">
+										<dt>Filters</dt>
+										<dd x-text="track.filters ? track.filters.join(',') : 'N/A'"></dd>
+									</div>
+								</dl>
+								
+								<footer>
+									<button @click="toggleMute" :disabled="requestInProgress" x-text="muted ? 'Unmute' : 'Mute'"></button>
+								</footer>
+								
+							</article>
+					
+						</template>
+					</template>
+				</section>
+				
+				<section x-data="togglable_section(true, 4, 'Filters')">
+					<template x-if="open">
+					
+						<div class="section" x-data = "{
+							get current_filter(){return $store.midish.session.state.curfilt},
+							get filters(){return $store.midish.session.state.filtlist}
+						}">
+							<nav>
+								<label>
+									<select x-model="current_filter">
+										<option :selected="!current_filter" value="">None</option>
+										<template  x-for="(filter_name, id) in filters" :key="id">
+											<option :selected="filter_name === current_filter" :value="filter_name" x-text="filter_name"></option>
+										</template>
+									</select>
+									Current Filter
+								</label>
+							</nav>
+						
+							<template x-if="current_filter">
+								<div class="section" x-data="{ rules : [] }" x-init="get_filter_rules().then( r => rules = r)">
+								
+									<h5>Rules in Filter <em x-text="current_filter"></em></h5>
+									
+									<template x-for="(rule, rule_id) of rules" :key="rule_id">
+									
+										<article>
+										
+											<template x-if="rule.type === 'vcurve'">
+												<dl>
+													<div class="entry">
+														<dt>Type</dt>
+														<dd>Velocity Curve</dd>
+													</div>
+													
+												<div class="entry">
+														<dt>Devices</dt>
+														<dd x-text="rule.velocityCurve.devices"></dd>
+													</div>
+													
+													<div class="entry">
+														<dt>Channels</dt>
+														<dd x-text="rule.velocityCurve.channels"></dd>
+													</div>
+													
+													<div class="entry">
+														<dt>Weight</dt>
+														<dd x-text="rule.velocityCurve.weight"></dd>
+													</div>
+													
+												</dl>	
+												
+											</template>	
+											<template x-if="rule.type === 'transp'">
+												<dl>
+													<div class="entry">
+														<dt>Type</dt>
+														<dd>Transpose</dd>
+													</div>
+													
+												<div class="entry">
+														<dt>Devices</dt>
+														<dd x-text="rule.transpose.devices"></dd>
+													</div>
+													
+													<div class="entry">
+														<dt>Channels</dt>
+														<dd x-text="rule.transpose.channels"></dd>
+													</div>
+													
+													<div class="entry">
+														<dt>Semitones</dt>
+														<dd x-text="rule.transpose.semitones"></dd>
+													</div>
+													
+												</dl>	
+												
+											</template>
+										
+											<template x-if="rule.type === 'evmap'">
+												<dl>
+													<div class="entry">
+														<dt>Type</dt>
+														<dd>Event Map <em x-text="rule.match.type"></em></dd>
+													</div>
+													
+													<div class="entry">
+														<dt>Devices</dt>
+														<dd>
+															<span x-text="rule.match.devices"></span>
+															→
+															<span x-text="rule.action.devices"></span>
+														</dd>
+													</div>
+													
+													<div class="entry">
+														<dt> Channels</dt>
+														<dd>
+															<span x-text="rule.match.channels"></span>
+															→
+															<span x-text="rule.action.channels"></span>
+														</dd>
+														
+													</div>
+													
+													<template x-if="rule.match.type ==='note'">
+														<div class="entry">
+															<dt>Notes</dt>
+															<dd>
+																<span x-text="rule.match.notes"></span>
+																→
+																<span x-text="rule.action.notes"></span>
+															</dd>
+														</div>
+													</template>
+													
+													<template x-if="rule.match.type ==='xctl'">
+														<div class="entry">
+															<dt>Controllers</dt>
+															<dd>
+																<span x-text="rule.match.controllers"></span>
+																→
+																<span x-text="rule.action.controllers"></span>
+															</dd>
+														</div>
+													</template>
+													
+													<template x-if="rule.match.type ==='xpc'">
+														<div class="entry">
+															<dt>Bank</dt>
+															<dd>
+																<span x-text="rule.match.bank"></span>
+																→
+																<span x-text="rule.action.bank"></span>
+															</dd>
+														</div>
+													</template>
+													
+													<template x-if="rule.match.type ==='xpc'">
+														<div class="entry">
+															<dt>Patch</dt>
+															<dd>
+																<span x-text="rule.match.patch"></span>
+																→
+																<span x-text="rule.action.patch"></span>
+															</dd>
+														</div>
+													</template>
+													
+													<template x-if="rule.match.type ==='nrpn'">
+														<div class="entry">
+															<dt>Parameters</dt>
+															<dd>
+																<span x-text="rule.match.NRPN_parameter_number"></span>
+																→
+																<span x-text="rule.action.NRPN_parameter_number"></span>
+															</dd>
+														</div>
+													</template>
+													
+													<template x-if="rule.match.type ==='nrpn'">
+														<div class="entry">
+															<dt>Values</dt>
+															<dd>
+																<span x-text="rule.match.NRPN_parameter_value"></span>
+																→
+																<span x-text="rule.action.NRPN_parameter_value"></span>
+															</dd>
+														</div>
+													</template>
+													
+												</dl>
+											</template>
+										</article>
+										
+									</template>
+									
+								</div>
+							</template>
+						
+							<footer>
+								<button class="todo" @click="$store.views.add_midish_filter = true">Add</button>
+							</footer>
+							
+							
+							<dialog x-data="dialog('add_midish_filter')">
+								<h5 class="dialog_title">New filter</h5>
+								<section x-data="{name : ''}">
+									
+									<label>
+										<input type="text" x-model="name"/>
+										Filter Name
+									</label>
+									<footer>
+										<button @click="add_filter(name)">Add</button>
+									</footer>
+								</section>
+							</dialog>
+							
+							
+							
+							
+							
+							
+						</div>
+					</template>
+				</section>
+				
+				<section x-data="togglable_section(false, 4, 'Time events')">
+					<template x-if="open">
+						
+						<template x-for="(time_ev, id) in $store.midish.session.meta_track" :key="id">
+							
+							<article>
+							
+								<dl>
+									<div class="entry">
+										<dt>Bar</dt>
+										<dd x-text="time_ev.measure"></dd>
+									</div>
+								</dl>
+								
+								<dl>
+									<div class="entry">
+										<dt>Time signature</dt>
+										<dd x-text="time_ev.timeSignature"></dd>
+									</div>
+								</dl>
+								
+								<template x-if="time_ev.hasTempoChange">
+
+									<dl>
+										<div class="entry">
+											<dt>Tempo</dt>
+											<dd>
+												<span x-text="time_ev.startTempo"></span>
+												<span>...</span>
+												<span x-text="time_ev.tempo"></span>
+											</dd>
+										</div>
+									</dl>
+									
+								</template>
+								
+								<template x-if="!time_ev.hasTempoChange">
+
+									<dl>
+										<div class="entry">
+											<dt>Tempo</dt>
+											<dd x-text="time_ev.tempo"></dd>
+										</div>
+									</dl>
+										
+								</template>
+								
+							</article>
+						</template>
+					</template>
+				</section>
+				
+				<footer x-data="{ get mode(){ return $store.midish.session.playing_mode} }">
+					
+					<button :disabled="mode ==='play'" @click="requestPlay">Play</button>
+					<button :disabled="mode ==='record'" @click="requestRecord">Record</button>
+					<button :disabled="mode ==='stop'" @click="requestStop">Stop</button>
+					
+					<button @click="resetSession">Reset session</button>
+				</footer>
+				
+			</section>
+		</template>
+		<!-- Session END -->
+		
+		<form @submit.prevent="submitMidiFile">
+		
+			<h4>Import Midi File</h4>
+			
+			<label>
+				<input required type="file" aria-describedby="midish_file_hint" accept=".mid,.midi,audio/midi,audio/x-midi" @change="fileSelected" />
+				Upload MIDI file
+			</label>
+			<small id="midish_file_hint" class="label_hint">
+				<span>
+					This will <u>overwrite</u> the current MIDI session. 
+					<br>
+					<br>
+				</span>
+				Beware that MIDI files exported from editors such as Musescore are likely to contain some program, tempo, control changes.
+				<br> 
+				Depending on what you are trying to do, those may be unwanted and might require a cleanup.
+			</small>
+			
+
+			
+			<footer>
+				<button :disabled="requestInProgress">Update</button>
+			</footer>
+
+		</form>
+	</div>
+		
+	
+</template>

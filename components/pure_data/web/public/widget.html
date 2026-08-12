@@ -1,0 +1,126 @@
+<template x-if="config">
+
+		<div x-data="pd(config)">
+		
+			<section>
+			
+				<h4>Config</h4>
+				
+				<p>
+					Modifications made here require a project save & restart to be effective (after clicking update).
+				</p>
+				
+				<label>
+					<input min="0" max="10" type="number" x-model.number="config.midiindev"></input>
+					Number of Midi Input ports
+				</label>	
+				
+				<label>
+					<input min="0" max="10" type="number" x-model.number="config.midioutdev"></input>
+					Number of Midi Output ports
+				</label>
+				
+				<label>
+					<input type="text" x-model="config.abstractions_path"></input>
+					Path to abstractions
+				</label>
+				
+				<footer>
+					<button :disabled="requestInProgress || configNotChanged()" @click="submitConfig">Update</button>
+				</footer>
+				
+			</section>
+			
+			<section>
+			
+				<p>
+					Editor is currently 
+					<strong>
+						<u x-text="stateHr">
+						</u>
+					</strong>
+					
+				</p>
+				
+				<template x-if="state !== EditorStates.READY">
+					<div>
+					
+						<p>Please mind that starting the editor will <strong>restart</strong> the current pure data instance.</p>
+					
+						<p>To use pure data remote editor you need to:</p>
+						<ul>
+							<li>
+								Have a remote device capable of running pure data TCL/TK wish GUI interpreter (shipped with pure data, usually just next to pd executable).
+							</li>
+							
+							<li>
+								Make sure the pure data version installed on the remote device matches EXACTLY this one. 
+							</li>
+							<li>
+								Start the Editor (using button below)
+							</li>
+							
+							<li>
+								Wait until the editor state is "awaiting remote GUI connection" <em x-show="state === EditorStates.AWAITING_GUI_CONNECTION">(it does now)</em>
+							</li>
+							<li>
+								From the remote device call <br><code>[pd_dir]/bin/wish86  [pd_dir]/tcl/pd-gui.tcl "[pd_host_ip]:58033"</code>
+								<ul>
+									<li>
+										<em>pd_dir</em> is the pure data directory installation.
+									</li>
+									<li>
+										<em>pd_host_ip</em> is the IP address of the device hosting pure data.
+									</li>
+								</ul>
+								
+							</li>
+						</ul>
+						
+					
+						<p>Once started in editor mode, pure data will not work until a remote GUI is connected. You can hit "Stop editor" to resume normal operation.</p>
+						
+					</div>
+				</template>
+				
+				
+				<template x-if="state === EditorStates.READY">
+					<div>
+					
+						<p>Note that <em>stopping the editor</em> will restart the current pure data instance.</p>
+					
+						<p>In the current context "stopping the editor" means any of the following :</p>
+						<ul>
+							<li>
+								GUI editor is closed (fully closed, including the console window)
+							</li>
+							
+							<li>
+								Clicking on the "Stop editor" button
+							</li>
+							
+						</ul>
+						
+						<p>Please note that using the "File > Save" feature in the remote GUI editor will write to the disk immediately. So any changes made will persist even if you do not save the project configuration.</p>
+						
+						<p>You can hit "Stop editor" to restart pure data in normal (non-editor) mode of operation.</p>
+						
+					</div>
+				</template>
+				
+				<footer>
+					<button
+						x-text = "btn_txt"
+						@click = "click"
+						:disabled = "requestInProgress"
+					></button>
+				</footer>
+		
+			</section>
+			
+		</div>
+			
+			
+
+	
+</template>
