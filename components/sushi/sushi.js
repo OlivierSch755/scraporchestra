@@ -143,7 +143,7 @@ class Sushi extends ComponentProcess{
 			)
 		}
 		catch(err) {
-			const err2 = SushiEditorCannotSaveSessionError("Cannot save session");
+			const err2 = new SushiEditorCannotSaveSessionError("Cannot save session");
 			err2.cause = err;
 			throw err2;
 		}
@@ -177,8 +177,8 @@ class Sushi extends ComponentProcess{
 		
 		this.instance = spawn( Sushi.bin, spawn_args, { env : this.env } );
 		
-		this.instance.stderr.on("data", d => console.log( 'error', d.toString() ))
-		this.instance.stdout.on("data", d => console.log( 'data', d.toString() ))
+		this.instance.stderr.on("data", d => console.log( 'SUSHI Err', d.toString() ) )
+		// this.instance.stdout.on("data", d => console.log( 'SUSHI stdout', d.toString() ))
 		
 		// Automatic handling of error and close events (uses this.state to watch if close event is expected or anormal)
 		this.handleClose(this.instance);
@@ -255,6 +255,11 @@ class Sushi extends ComponentProcess{
 		
 		try{
 			this.editor_backend = editor_module.startSushiWebEditorBackend(proto , wss );
+			
+			this.editor_backend.proxy.once("error", (err)=>{
+				this.state = ComponentState.ERROR;
+			})
+			
 			await this.editor_backend.proxy.connect();
 			Dispatcher.emit("component.sushi.editor", true );
 		}
@@ -268,7 +273,6 @@ class Sushi extends ComponentProcess{
 			probably needs more error handling here 
 		*/
 		
-		return this.editor_backend;
 		
 	}
 	
@@ -283,6 +287,7 @@ class Sushi extends ComponentProcess{
 		}
 		catch(err){
 			const err2 = new SushiEditorCloseError("Could not close Sushi editor properly");
+			console.log(err)
 			err2.cause = err;
 			throw err2;
 		}
