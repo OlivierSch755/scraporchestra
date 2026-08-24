@@ -132,7 +132,11 @@ class AsyncValidator extends EventEmitter{
 	
 	close(){
 		this.tearing_down = true;
-		this.stream.cancel();
+		if(this.stream){
+			this.stream.cancel();
+			this.stream = null;
+		}
+		
 		this.rejectAll();
 	};
 	

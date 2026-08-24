@@ -80,8 +80,6 @@ class Midish extends ComponentProcess{
 		await fs.writeFile( file_path, buffer);
 		await this.controller.importMidiFile( file_path );
 		
-		
-		
 	}
 	
 
@@ -112,7 +110,7 @@ class Midish extends ComponentProcess{
 		
 		const spawn_args = ["-v"];
 		
-		// we spawn midish
+		// spawn midish
 		this.instance = spawn( Midish.bin, spawn_args );
 
 		this.handleClose(this.instance);
@@ -120,6 +118,10 @@ class Midish extends ComponentProcess{
 		
 		// spawn alsa bridge to have a stable port
 		this.bridge_instance = spawn( Midish.bridge_bin);
+		
+		this.bridge_instance.on("error", ()=>{
+			this.state = ComponentState.ERROR;
+		})
 		
 		const midishController = new MidishController();
 		
@@ -161,7 +163,6 @@ class Midish extends ComponentProcess{
 	}
 
 	async close(){
-		await super.close();
 		if (this.bridge_instance && this.bridge_instance.exitCode === null && !this.bridge_instance.killed) {
 			try{
 				this.bridge_instance.kill();
@@ -170,10 +171,11 @@ class Midish extends ComponentProcess{
 			catch(err){
 				err2 = new ComponentNotProperlyClosedError( `Could not kill process spawned by component ${this.name} (...suspect)` );
 				err2.cause = err;
+				console.error(err2);
 			}
 		}
+		await super.close();
 	}
-	
 	
 	toJSON(){
 		const data = super.toJSON();

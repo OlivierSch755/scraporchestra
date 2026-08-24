@@ -127,6 +127,12 @@ label + .label_hint, entry, .label_hint {
   margin-top: calc( var(--gap2) * -1);
 }
 
+button {
+    background: #2b2a33;
+    border: solid #8f8f9d 1px;
+    border-radius: 5%;
+}
+
 button, input, select{
 	min-width:var(--ui_unit)!important;
 	min-height:var(--ui_unit)!important;

@@ -121,10 +121,16 @@ Alpine.store('project_manager', {
 		if(!project) return;
 		const save_config_route = "/projects/api/saveconfig/" + project.name;
 		try{
-			// should check status at least
 			const req = await fetch(save_config_route , {method : "post"});
-			AppStatus.success("Config saved");
-		} catch(err){
+			if(req.ok){
+				AppStatus.success("Config saved");
+			}
+			else {
+				const err_msg = await req.text();
+				throw "Could not save config: " + err_msg;
+			}
+		} 
+		catch(err){
 			AppStatus.error(err);
 		}
 		this.requestInProgress = false;;
@@ -137,7 +143,10 @@ Alpine.store('project_manager', {
 			if(req.ok){
 				AppStatus.success("Added Component(s)");
 			}
-			
+			else {
+				const err_msg = await req.text();
+				throw "Could not add component: " + err_msg;
+			}
 		}
 		catch(err){
 			AppStatus.error(err);
@@ -157,8 +166,10 @@ Alpine.store('project_manager', {
 			if(req.ok){
 				AppStatus.success("Removed Component");
 			}
-			else throw "Could not remove component"
-
+			else {
+				const err_msg = await req.text();
+				throw "Could not remove component: " + err_msg;
+			}
 		}
 		catch(err){
 			AppStatus.error(err);
@@ -171,9 +182,14 @@ Alpine.store('project_manager', {
 
 		this.requestInProgress = true;
 		try{
-			const req = await fetch('/projects/api/create/'+ data.project_name, {method:'post', body: JSON.stringify(data) });		
-			const res = await req.text();
-			AppStatus.success("Project created : " + data.project_name);
+			const req = await fetch('/projects/api/create/'+ data.project_name, {method:'post', body: JSON.stringify(data) });	
+			if(req.ok){
+				AppStatus.success("Project created : " + data.project_name)
+			}
+			else {
+				const err_msg = await req.text();
+				throw "Could not create project: " + err_msg;
+			}
 			await this.reload();
 		}
 		catch(err){
@@ -193,12 +209,12 @@ Alpine.store('project_manager', {
 		try{
 			req = await fetch('/projects/api/delete/'+ project_name, {method:'post'});		
 			if(req.ok){ 
-				AppStatus.success("Project deleted : " + project_name);
+				AppStatus.success("Project deleted: " + project_name);
 				await this.reload();
 			}
 			else {
 				const res = await req.text();
-				throw res;
+				throw "Could not delete project: " + res;
 			}
 		}
 		catch(err){

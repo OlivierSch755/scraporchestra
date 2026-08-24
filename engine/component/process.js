@@ -50,7 +50,7 @@ class ComponentProcess extends Component{
 			}
 		}
 		else if( !options.ignore_missing_process  ){
-			err2 = new ComponentNotProperlyClosedError( `Component ${this.name} has no process to kill (...suspect)` );
+			console.warn( new ComponentNotProperlyClosedError( `Component ${this.name} has no process to kill (...suspect)` ) )
 		}
 		
 		this.instance = null;
@@ -65,8 +65,6 @@ class ComponentProcess extends Component{
 	}
 	
 	static async verifyDependencies(){
-		
-		
 		return await (
 			fs.access( this.bin, fs.constants.F_OK)
 				.then(() => true)
@@ -74,7 +72,6 @@ class ComponentProcess extends Component{
 		)
 	}
 	
-
 	handleClose(instance){
 		instance.once("close", (e) =>{
 			this.instance = null;
@@ -83,21 +80,19 @@ class ComponentProcess extends Component{
 			this.state = ComponentState.ERROR;
 			
 			const err = new ComponentUnexpectedlyTerminatedError( `Component ${this.name} process should not have exited now` );
-			this.emit("error", err ) ;
-			
+			// this.emit("error", err ) ;
+			console.error(err);
 		} );	
 	}
 	
 	handleError(instance){
-		
 		instance.once("error", (err) =>{
 			this.instance = null;
-			
 			this.state = ComponentState.ERROR;
-			
 			const err2 = new ComponentError( `Component ${this.name} process error`  );
 			err2.cause = err;
-			this.emit("error", err ) ;
+			// this.emit("error", err ) ;
+			console.error(err2);
 		});
 		
 	}
