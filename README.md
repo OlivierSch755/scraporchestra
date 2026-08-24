@@ -1,7 +1,7 @@
 # ScrapOrchestra
 
 > [!CAUTION]
-> Version 0.0.9
+> Version 0.1.0
 > This is a very early alpha prototype.
 
 <hr>
