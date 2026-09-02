@@ -124,29 +124,26 @@
 									</button>
 								</article>
 							</template>
-					
-							<footer x-show="project_manager.loaded">
-								<button @click="$store.views.new_project = 1">Add</button>
-							</footer>
-
-							<dialog x-data="dialog('new_project')">
-								<h2 class="dialog_title">New Project</h2>
-								<form @submit.prevent="project_manager.requestNewProject( Object.fromEntries ( new FormData($el) ) ).then( ()=>close())">
-									<label>
-										<input aria-describedby="project_name_hint" pattern="[A-Za-z0-9_\-]+" type="text" name="project_name" required></input>
-										Project Name
-									</label>
-									<small  id="project_name_hint" class="label_hint">Use only letters, numbers, underscores ( _ ) and hyphens ( - ).</small>
-									<footer>
-										<button type="submit">Add</button>
-									</footer>
-								</form>
-							</dialog>
-									
-									
+							
 						</section>
-						
-					
+						<footer x-show="project_manager.loaded">
+								<button @click="$store.views.new_project = 1">Add</button>
+						</footer>
+
+						<dialog x-data="dialog('new_project')">
+							<h2 class="dialog_title">New Project</h2>
+							<form @submit.prevent="project_manager.requestNewProject( Object.fromEntries ( new FormData($el) ) ).then( ()=>close())">
+								<label>
+									<input aria-describedby="project_name_hint" pattern="[A-Za-z0-9_\-]+" type="text" name="project_name" required></input>
+									Project Name
+								</label>
+								<small  id="project_name_hint" class="label_hint">Use only letters, numbers, underscores ( _ ) and hyphens ( - ).</small>
+								<footer>
+									<button type="submit">Add</button>
+								</footer>
+							</form>
+						</dialog>
+									
 				</main>
 			</template>
 		

@@ -25,7 +25,7 @@
 				padding: 0 var(--gap2);
 			}
 			.move_processor_item > div.current {
-				background:var(--main-color);
+				background:light-dark(var(--main-color2-light), var(--main-color2-dark));
 			}
 						
 						
@@ -40,12 +40,12 @@
 
 
 			[x-data="pluginView"] li:nth-child(odd) {
-			  background: var(--main-color);
+			  background:light-dark(var(--main-color-light), var(--main-color-dark));
 			}
 
 
 			[x-data="pluginView"] li:nth-child(even) {
-			  background:  #526C6C
+			  background:light-dark(var(--main-color2-light), var(--main-color2-dark));
 			}
 
 			[x-data="pluginView"] li {

@@ -10,8 +10,11 @@
 	--radius : 6px;
 	--ui_unit : 44px;
 	
-	--main-color : darkslategray;
-	--main-color2 : #526C6C;
+	--main-color : #2f4f4f;
+	--main-color-dark : #2f4f4f;
+	--main-color-light : #E9E8F0;
+	--main-color2-dark : #526C6C;
+	--main-color2-light : #b7c9d8;
 	
 }
 
@@ -120,7 +123,8 @@ label, .entry {
 
 label + .label_hint, entry, .label_hint {
   display: block;
-  border: solid 2px var(--main-color);
+  /* border: solid 2px var(--main-color); */
+  border: solid 2px light-dark(var(--main-color-light),var(--main-color-dark));
   padding: var(--gap);
   border-top: 0;
   box-sizing: content-box;
@@ -128,7 +132,6 @@ label + .label_hint, entry, .label_hint {
 }
 
 button {
-    background: #2b2a33;
     border: solid #8f8f9d 1px;
     border-radius: 5%;
 }
@@ -241,10 +244,11 @@ p, li {
 
 
 label, footer{
-	background:var(--main-color);
+	
+	background:light-dark(var(--main-color-light), var(--main-color-dark));
 	padding: var(--gap);
 }
 	
 main > footer {
-	background: linear-gradient(90deg, rgb(88, 149, 149) 0%, rgb(47, 79, 79) 50% 80%);
+	background:light-dark(linear-gradient(90deg, var(--main-color2-light) 0%, var(--main-color-light) 50% 80%),linear-gradient(90deg, var(--main-color2-dark) 0%, var(--main-color-dark) 50% 80%));
 }
