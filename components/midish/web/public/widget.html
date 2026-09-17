@@ -37,8 +37,8 @@
 			</article>
 		</template>
 	
-	
-		<!-- Session START -->
+
+		<!-- SESSION  -->
 		<template x-if="$store.midish.session_loaded">
 		
 			<section>
@@ -83,6 +83,15 @@
 					<input type="checkbox" :checked="$store.midish.session.loop"  @change.prevent="requestSetLoopMode($el.checked)" class="mono_input">
 					Loop
 				</label>
+				
+				<!-- TEMPO FACTOR CTRL -->
+				<form @submit.prevent="requestTempoFactorFormSubmit($el)" class="mono_input">
+					<label>
+						<input :value="$store.midish.session.tempo_factor" type="number" min="50" max="200" step="1"  name="tempo_factor">
+						Tempo factor
+					</label>
+				</form>
+				
 			
 				<!-- SLAVE MODE -->
 				<label>

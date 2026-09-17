@@ -186,6 +186,8 @@ class MidishController extends MidishControllerBaseClass{
 	}
 	loop_mode = false;
 	
+	tempo_factor = 100;
+	
 	last_emitted_position = {...defaultPosition};
 	
 	metronome = {
@@ -220,9 +222,8 @@ class MidishController extends MidishControllerBaseClass{
 		 
 		 if( res.data.length ){
 			 throw {
-				 message : "Could not restore midish session",
+				 message : "Could not restore midish session : " + res.data.join("\n"),
 				 type : "session_restore",
-				 message : res.data.join("\n")
 			 };
 		 }
 		 
@@ -302,7 +303,6 @@ class MidishController extends MidishControllerBaseClass{
 		});
 	}
 	
-	
 	async notifyLoopModeChange(){
 		
 		const loop_enabled = this.loop_mode;
@@ -335,6 +335,16 @@ class MidishController extends MidishControllerBaseClass{
 		});
 	}
 	
+	async notifyTempoFactorChange(){
+		if(this.session_data){
+			this.session_data.tempo_factor = this.tempo_factor;
+		}
+		
+		this.emit("notification", {
+			type : "tempo_factor",
+			data : this.tempo_factor
+		});
+	}
 	
 	_getTrackByName(track_name){
 		return this.session_data?.state?.tracklist?.find(track => track.name === track_name);
@@ -364,7 +374,6 @@ class MidishController extends MidishControllerBaseClass{
 			track.flags.delete("mute");
 		}
 		
-		
 		this.emit("notification", {
 			type : "mute",
 			data : {
@@ -373,8 +382,6 @@ class MidishController extends MidishControllerBaseClass{
 			}
 		});
 	}
-	
-	
 	
 	
 	async getSessionData( burst_cache = false ){
@@ -397,6 +404,8 @@ class MidishController extends MidishControllerBaseClass{
 			end : state.curlen
 		}
 		
+		const tempo_factor = await this.getTempoFactor();
+		
 		const session_data = {
 			position : this.position,
 			length,
@@ -405,6 +414,7 @@ class MidishController extends MidishControllerBaseClass{
 			playing_mode : this.playing_mode,
 			loop : this.loop_mode,
 			metronome : this.metronome,
+			tempo_factor
 		}
 		this.session_data = session_data; 
 		return session_data;
@@ -445,7 +455,6 @@ class MidishController extends MidishControllerBaseClass{
 		this.notifyLoopModeChange();
 	}
 	
-	
 	async add_filter(filter_name){
 		const res = await this.sendCommand(`fnew ${filter_name}`);
 		if(res.data.length){
@@ -485,8 +494,6 @@ class MidishController extends MidishControllerBaseClass{
 		this.notifySelectionChange();
 	}
 	
-	
-	
 	async setSlaveMode(slave){
 		
 		this.slave = slave;
@@ -512,14 +519,30 @@ class MidishController extends MidishControllerBaseClass{
 		
 	}
 	
+	async getTempoFactor(){
+		const res = await this.sendCommand(`getfac`);
+		console.log("gettempofactor : ", res)
+		const factor = Number(res.data);
+		return factor;
+	}
 	
-	
+	async setTempoFactor(factor){
+		factor = Number(factor);
+		if(factor < 50 || factor > 200 ){
+			 throw {
+				 message : "Tempo factor must be between 50 and 200",
+				 type : "set_tempo",
+			 };
+		}
+		await this.sendCommand(`fac ${factor}`);
+		this.tempo_factor = factor;
+		this.notifyTempoFactorChange();
+	}
 	
 	async initNewSession(){
 		await this.sendCommand(`fnew default`);
 		await this.sendCommand(`fmap { any {1 1..15} } { any {0 1..15} }`);
 	}
-	
 	
 	async initDevices(config){
 		await this.sendCommand(`dnew 0 "Midish-Transport:2" wo`);
@@ -527,7 +550,6 @@ class MidishController extends MidishControllerBaseClass{
 		await this.setSlaveMode( (config.slave_mode ?? false ) );
 		await this.toogleLoop( (config.loop ?? false ) );
 	}
-	
 	
 	
 }

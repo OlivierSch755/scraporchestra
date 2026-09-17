@@ -67,9 +67,14 @@ wsClient.addEventListener("component.midish.notification", async (event)=>{
 		
 		case "selection" : {
 			const {start, end} = notification.data;
-			console.log(notification)
 			midishStore.session.state.curpos = start;
 			midishStore.session.state.curlen = end;
+			break;
+		}
+		
+		case "tempo_factor" : {
+			const factor = notification.data;
+			midishStore.session.tempo_factor = factor;
 			break;
 		}
 		
@@ -95,7 +100,7 @@ wsClient.addEventListener("component.midish.notification", async (event)=>{
 			midishStore.session.loop = notification.data;
 			break;
 		}
-		
+	
 		
 	}
 	
@@ -329,6 +334,20 @@ Alpine.data("midish", (config)=> ({
 		}
 		else {
 			AppStatus.success("Selection updated")
+		}
+		this.requestInProgress = false;
+	},
+	
+	async requestTempoFactorFormSubmit(formElement){
+		this.requestInProgress = true;
+		const tempo_factor = Number( new FormData( formElement ).get("tempo_factor") );
+		const req = await fetch("/components/midish/api/fac/" + tempo_factor, {method:"post"});
+		if (!req.ok) {
+			const msg = await req.text();
+			AppStatus.error("Could not update Tempo Factor " + msg);
+		}
+		else {
+			AppStatus.success("Tempo Factor updated")
 		}
 		this.requestInProgress = false;
 	},
