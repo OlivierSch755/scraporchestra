@@ -1,0 +1,16 @@
+{
+  "name": "midish",
+  "version": "0.0.4",
+  "description": "",
+  "license": "MIT",
+  "author": "Olivier Schwach",
+  "type": "commonjs",
+  "main": "midish.js",
+  "private": true,
+  "scripts": {
+    "build:evspec": "esbuild lib/evspec.js --format=esm --outfile=web/public/evspec.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}
