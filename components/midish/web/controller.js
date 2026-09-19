@@ -86,7 +86,15 @@ class MidishController extends ComponentWebController {
 		});
 		
 		
-
+		router.post( "/api/tapev" , async (req, res) => {
+			await this.instance.controller?.set_tapev(req.body);
+			res.sendStatus( 200 );
+		});
+		router.post( "/api/tap/:mode" , async (req, res) => {
+			const mode =  req.params.mode;
+			await this.instance.controller?.set_tap(mode);
+			res.sendStatus( 200 );
+		});
 		
 		
 		router.get("/api/session.json", async (req, res) => {

@@ -117,7 +117,6 @@
 				<section x-data="togglable_section(false, 4, 'Metronome')">
 					<template x-if="open">
 						<form @submit.prevent="requestSetMetronomeFormSubmit($el)" x-data="{get metro(){return $store.midish.session.metronome}}">
-							<h5>Metronome</h5>
 							<label>
 								
 								<select required name="enabled" x-model="metro.enabled">
@@ -170,8 +169,6 @@
 					</template>
 				</section>
 				
-				
-				
 				<!-- TRACKS -->
 				<section x-data="togglable_section(false, 4, 'Tracks')">
 					<template x-if="open">
@@ -205,7 +202,8 @@
 					</template>
 				</section>
 				
-				<section x-data="togglable_section(true, 4, 'Filters')">
+				<!-- FILTERS -->
+				<section x-data="togglable_section(false, 4, 'Filters')">
 					<template x-if="open">
 					
 						<div class="section" x-data = "{
@@ -413,6 +411,7 @@
 					</template>
 				</section>
 				
+				<!-- TIME -->
 				<section x-data="togglable_section(false, 4, 'Time events')">
 					<template x-if="open">
 						
@@ -465,6 +464,107 @@
 					</template>
 				</section>
 				
+				<!-- TAPSTART -->
+				<section x-data="togglable_section(true, 4, 'Tap start')">
+					<template x-if="open">
+					
+						<div x-data="tapev_builder()" class="section">
+						
+
+							<label>
+								<select :value="$store.midish.session.state.tap" @change="submit_enabled_state($el.value)">
+									<option>off</option>
+									<option>start</option>
+									<option>tempo</option>
+								</select>
+								Enabled
+							</label>
+							
+							<hr>
+							<p>Current tap event to start : <em x-text="$store.midish.session.state.tapev"></em> </p>
+							
+							<label>
+								<select x-model="type_name">
+									<template x-for="(Type,name) of Types" :key="name">
+										<option :selected="(name === type_name)" x-text="name" :value="name"></option>
+									</template>
+								</select>
+								Event type
+							</label>
+							
+							<template x-if="has_channels_and_devices()">
+							
+								<div class="section">
+									<label>
+										<input x-model="channels.start" type="number"/>
+										Channel (start)
+									</label>
+									
+									<label>
+										<input x-model="channels.end" type="number"/>
+										Channel (end)
+									</label>
+													
+									<label>
+										<input x-model="devices.start" type="number"/>
+										Device (start)
+									</label>
+									
+									<label>
+										<input x-model="devices.end" type="number"/>
+										Device (end)
+									</label>
+								</div>
+								
+							</template>
+							
+							<template x-if="get_value_1_name()">
+							
+								<div class="section">
+									<label>
+										<input x-model="values1.start" type="number"/>
+										<span> <span x-text="get_value_1_name()"></span> (start)</span>
+									</label>
+									
+									<label>
+										<input x-model="values1.end" type="number"/>
+										<span> <span x-text="get_value_1_name()"></span> (end)</span>
+									</label>
+									
+								</div>
+								
+							</template>
+							
+							<template x-if="get_value_2_name()">
+							
+								<div class="section">
+									<label>
+										<input x-model="values1.start" type="number"/>
+										<span> <span x-text="get_value_2_name()"></span> (start)</span>
+									</label>
+									
+									<label>
+										<input x-model="values1.end" type="number"/>
+										<span> <span x-text="get_value_2_name()"></span> (end)</span>
+									</label>
+									
+								</div>
+								
+							</template>
+							
+							<footer>
+								<button @click="submit()">Submit</button>
+							</footer>
+							
+						</div>
+					</template>
+				</section>
+				
+				
+				
+				
+				
+				<!-- TRANSPORT -->
 				<footer x-data="{ get mode(){ return $store.midish.session.playing_mode} }">
 					
 					<button :disabled="mode ==='play'" @click="requestPlay">Play</button>
@@ -504,6 +604,9 @@
 			</footer>
 
 		</form>
+		
+		
+		
 	</div>
 		
 	

@@ -1,6 +1,9 @@
 import Alpine from '/js/lib/alpine.js';
 import { wsClient } from "/js/ws_client_wrapper.js";
 
+import Evspec from "./evspec.mjs";
+
+
 let req =  await fetch("/components/midish/widget.html");
 let templateTxt = await req.text();
 
@@ -32,6 +35,7 @@ Alpine.store("midish", {
 			track.flags = new Set( track.flags );
 		} )
 		
+		hydrated_data.state.tapev = Evspec.hydrateEvent(hydrated_data.state.tapev);
 		
 		Object.assign( this.session, hydrated_data );
 		this.session_loaded = true;
@@ -69,6 +73,13 @@ wsClient.addEventListener("component.midish.notification", async (event)=>{
 			const {start, end} = notification.data;
 			midishStore.session.state.curpos = start;
 			midishStore.session.state.curlen = end;
+			break;
+		}
+		
+		case "tap" : {
+			const {tap, tapev} = notification.data;
+			midishStore.session.state.tapev = Evspec.hydrateEvent(tapev);
+			midishStore.session.state.tap = tap;
 			break;
 		}
 		
@@ -435,5 +446,105 @@ Alpine.data("midish", (config)=> ({
 
 }));
 
+
+
+
+
+Alpine.data("tapev_builder", ()=> ({
+	
+	tap_enabled : "off",
+	Types : Evspec.Types,
+	type_name : "none",
+	channels : new Evspec.RangeValueUnlimited(),
+	devices : new Evspec.RangeValueUnlimited(),
+	values1 : new Evspec.RangeValueUnlimited(),
+	values2 : new Evspec.RangeValueUnlimited(),
+	
+	has_channels_and_devices(){
+		return this.type_name !== "none";
+	},
+	
+	get_value_1_name(){
+		switch(this.type_name){
+			case  "note" :
+				return "Note"
+			break;	
+			case  "ctl" :
+			case  "xctl" :
+				return "Control"
+			break;		
+			case  "xpc" :
+				return "Bank"
+			break;	
+			case  "nrpn" :
+				return "Parameter"
+			break;			
+		}
+	},
+	
+	get_value_2_name(){
+		switch(this.type_name){
+			case  "xpc" :
+				return "Patch"
+			break;			
+		}
+	},
+	
+	async submit_enabled_state(value){
+		this.requestInProgress = true;
+		const req = await fetch("/components/midish/api/tap/" + value, {method:"post"});
+		if (!req.ok) {
+			const msg = await req.text();
+			AppStatus.error("Could not update Tap Mode " + msg);
+		}
+		else {
+			AppStatus.success("Tap Mode updated")
+		}
+		this.requestInProgress = false;
+	},
+	
+	
+	async submit(){
+		
+		this.requestInProgress = true;
+		
+		const Type =  Evspec.getConstructorByTypeName(this.type_name);
+		const ev = new Type();
+		
+		switch(this.type_name){
+			case  "note" :
+				ev.notes = this.values1;
+			break;	
+			case  "ctl" :
+			case  "xctl" :
+				ev.controls = this.values1;
+			break;		
+			case  "xpc" :
+				ev.bank = this.values1;
+				ev.patch = this.values2;
+			break;	
+			case  "nrpn" :
+				ev.param_number = this.values1;
+			break;			
+		}
+		
+		const req = await fetch('/components/midish/api/tapev/', {method:'post', headers: {"Content-Type": "application/json"}, body: JSON.stringify(ev) });	
+		
+		if (!req.ok) {
+			const msg = await req.text();
+			AppStatus.error("Could not update Tap Event " + msg);
+		}
+		else {
+			AppStatus.success("Tap Event updated")
+		}
+		this.requestInProgress = false;
+		
+	}
+	
+	
+	
+})
+
+);
 
 export const template = parse(templateTxt)

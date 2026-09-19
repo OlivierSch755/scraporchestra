@@ -3,6 +3,10 @@ const readline = require("node:readline");
 
 const {parseFilterRules} = require("./lib/filters.js");
 
+const Evspec = require("./lib/evspec.js");
+
+
+
 
 const defaultState = {
 	outlist: [],
@@ -186,7 +190,12 @@ class MidishController extends MidishControllerBaseClass{
 	}
 	loop_mode = false;
 	
+	tapev = null;
+	tap = null;
+	
 	tempo_factor = 100;
+	
+	
 	
 	last_emitted_position = {...defaultPosition};
 	
@@ -303,6 +312,18 @@ class MidishController extends MidishControllerBaseClass{
 		});
 	}
 	
+	async notifyTapEvChange(){
+		const state = this.session_data?.state;
+		if(state){
+			state.tapev = this.tapev;
+			state.tap = this.tap;
+		}
+		this.emit("notification", {
+			type : "tap",
+			data : {tapev: this.tapev, tap : this.tap}
+		});
+	}
+	
 	async notifyLoopModeChange(){
 		
 		const loop_enabled = this.loop_mode;
@@ -404,6 +425,9 @@ class MidishController extends MidishControllerBaseClass{
 			end : state.curlen
 		}
 		
+		this.tap = state.tap;
+		this.tapev = state.tapev;
+		
 		const tempo_factor = await this.getTempoFactor();
 		
 		const session_data = {
@@ -420,7 +444,18 @@ class MidishController extends MidishControllerBaseClass{
 		return session_data;
 	}
 	
+	async set_tap( mode ){
+		const res = await this.sendCommand(`tap ${mode}`);
+		this.tap = mode;
+		this.notifyTapEvChange();
+	}
 	
+	async set_tapev( raw_tapev_object ){
+		const ev = Evspec.hydrateEvent(raw_tapev_object);
+		const res = await this.sendCommand(`tapev ${ev}`);
+		this.tapev = ev;
+		this.notifyTapEvChange();
+	}
 	
 	async reset(){
 		const res = await this.sendCommand(`reset`);
@@ -521,7 +556,6 @@ class MidishController extends MidishControllerBaseClass{
 	
 	async getTempoFactor(){
 		const res = await this.sendCommand(`getfac`);
-		console.log("gettempofactor : ", res)
 		const factor = Number(res.data);
 		return factor;
 	}
@@ -661,6 +695,17 @@ function parseConfig(lines) {
 			case "curlen":
 				result[key] = Number(value);
 				break;
+
+			case "tapev" : 
+				result[key] = value === "nil" ? null : value;
+				try{
+					result[key] = Evspec.hydrateString(value);
+				}	
+				catch(err){
+					console.log(err)
+				}
+				break;
+
 
 			default:
 				result[key] = value === "nil" ? null : value;
