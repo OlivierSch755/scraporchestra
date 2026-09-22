@@ -224,8 +224,6 @@ class MidishController extends MidishControllerBaseClass{
 		})
 	}
 	
-	
-	
 	async loadSession(file_msh, do_not_notify_yet = false){
 		 const res = await this.sendCommand(`load "${file_msh}"`);
 		 
@@ -581,7 +579,7 @@ class MidishController extends MidishControllerBaseClass{
 	async initDevices(config){
 		await this.sendCommand(`dnew 0 "Midish-Transport:2" wo`);
 		await this.sendCommand(`dnew 1 "Midish-Transport:3" ro`);
-		await this.setSlaveMode( (config.slave_mode ?? false ) );
+		await this.setSlaveMode( (config.slave ?? false ) );
 		await this.toogleLoop( (config.loop ?? false ) );
 	}
 	
