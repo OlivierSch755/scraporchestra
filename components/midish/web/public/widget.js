@@ -454,40 +454,80 @@ Alpine.data("tapev_builder", ()=> ({
 	
 	tap_enabled : "off",
 	Types : Evspec.Types,
-	type_name : "none",
-	channels : new Evspec.RangeValueUnlimited(),
-	devices : new Evspec.RangeValueUnlimited(),
-	values1 : new Evspec.RangeValueUnlimited(),
-	values2 : new Evspec.RangeValueUnlimited(),
+	_type_name : midishStore.session.state.tapev.type,
+	ev : midishStore.session.state.tapev, 
+	ev_keys : [],
+	enabled : midishStore.session.state.tap,
+	init(){
+		this.init_ev();
+	},
+	
+	init_ev(){
+		switch(this._type_name){
+			
+			case  "note" :
+				this.ev_keys = [{ key : "Note", val : this.ev.notes  }];
+			break;	
+			
+			case  "ctl" :
+			case  "xctl" :
+				this.ev_keys = [{ key : "Control", val : this.ev.controls  }];
+			break;		
+			
+			case  "xpc" :
+			this.ev_keys = [
+				{ key : "Bank", val : this.ev.bank },
+				{ key : "Patch", val : this.ev.patch },
+			];
+			break;	
+			
+			case  "nrpn" :
+				this.ev_keys = [{ key : "Parameter", val : this.ev.param_number  }];
+			break;			
+		}
+		
+		// only listen to tap events that come from the input device
+		this.ev.devices.start = 1;
+		this.ev.devices.end = 1;
+	},
 	
 	has_channels_and_devices(){
 		return this.type_name !== "none";
 	},
 	
-	get_value_1_name(){
-		switch(this.type_name){
+	set type_name(type_name){
+		const Type = Evspec.getConstructorByTypeName(type_name);
+		this.ev = new Type();
+		this.ev_keys = [];
+		
+		switch(type_name){
+			
 			case  "note" :
-				return "Note"
+				this.ev_keys = [{ key : "Note", val : this.ev.notes  }];
 			break;	
+			
 			case  "ctl" :
 			case  "xctl" :
-				return "Control"
+				this.ev_keys = [{ key : "Control", val : this.ev.controls  }];
 			break;		
+			
 			case  "xpc" :
-				return "Bank"
+			this.ev_keys = [
+				{ key : "Bank", val : this.ev.bank },
+				{ key : "Patch", val : this.ev.patch },
+			];
 			break;	
+			
 			case  "nrpn" :
-				return "Parameter"
+				this.ev_keys = [{ key : "Parameter", val : this.ev.param_number  }];
 			break;			
 		}
+		
+		this._type_name = type_name
 	},
 	
-	get_value_2_name(){
-		switch(this.type_name){
-			case  "xpc" :
-				return "Patch"
-			break;			
-		}
+	get type_name(){
+		return this._type_name;
 	},
 	
 	async submit_enabled_state(value){
@@ -508,27 +548,11 @@ Alpine.data("tapev_builder", ()=> ({
 		
 		this.requestInProgress = true;
 		
-		const Type =  Evspec.getConstructorByTypeName(this.type_name);
-		const ev = new Type();
+		const ev = this.ev;
+		const enabled = this.enabled;
+		const message = {ev,enabled}
 		
-		switch(this.type_name){
-			case  "note" :
-				ev.notes = this.values1;
-			break;	
-			case  "ctl" :
-			case  "xctl" :
-				ev.controls = this.values1;
-			break;		
-			case  "xpc" :
-				ev.bank = this.values1;
-				ev.patch = this.values2;
-			break;	
-			case  "nrpn" :
-				ev.param_number = this.values1;
-			break;			
-		}
-		
-		const req = await fetch('/components/midish/api/tapev/', {method:'post', headers: {"Content-Type": "application/json"}, body: JSON.stringify(ev) });	
+		const req = await fetch('/components/midish/api/tapev/', {method:'post', headers: {"Content-Type": "application/json"}, body: JSON.stringify(message) });	
 		
 		if (!req.ok) {
 			const msg = await req.text();

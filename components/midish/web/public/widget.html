@@ -465,23 +465,19 @@
 				</section>
 				
 				<!-- TAPSTART -->
-				<section x-data="togglable_section(true, 4, 'Tap start')">
+				<section x-data="togglable_section(false, 4, 'Tap start')">
 					<template x-if="open">
 					
 						<div x-data="tapev_builder()" class="section">
 						
-
 							<label>
-								<select :value="$store.midish.session.state.tap" @change="submit_enabled_state($el.value)">
+								<select x-model="enabled">
 									<option>off</option>
 									<option>start</option>
 									<option>tempo</option>
 								</select>
 								Enabled
 							</label>
-							
-							<hr>
-							<p>Current tap event to start : <em x-text="$store.midish.session.state.tapev"></em> </p>
 							
 							<label>
 								<select x-model="type_name">
@@ -493,63 +489,32 @@
 							</label>
 							
 							<template x-if="has_channels_and_devices()">
-							
 								<div class="section">
 									<label>
-										<input x-model="channels.start" type="number"/>
+										<input x-model="ev.channels.start" type="number"/>
 										Channel (start)
 									</label>
 									
 									<label>
-										<input x-model="channels.end" type="number"/>
+										<input x-model="ev.channels.end" type="number"/>
 										Channel (end)
 									</label>
 													
-									<label>
-										<input x-model="devices.start" type="number"/>
-										Device (start)
-									</label>
-									
-									<label>
-										<input x-model="devices.end" type="number"/>
-										Device (end)
-									</label>
 								</div>
-								
 							</template>
 							
-							<template x-if="get_value_1_name()">
-							
+							<template x-for="(entry,index) in ev_keys" key="index">
 								<div class="section">
 									<label>
-										<input x-model="values1.start" type="number"/>
-										<span> <span x-text="get_value_1_name()"></span> (start)</span>
+										<input x-model="entry.val.start" type="number"/>
+										<span> <span x-text="entry.key"></span> (start)</span>
 									</label>
 									
 									<label>
-										<input x-model="values1.end" type="number"/>
-										<span> <span x-text="get_value_1_name()"></span> (end)</span>
+										<input x-model="entry.val.end" type="number"/>
+										<span> <span x-text="entry.key"></span> (end)</span>
 									</label>
-									
 								</div>
-								
-							</template>
-							
-							<template x-if="get_value_2_name()">
-							
-								<div class="section">
-									<label>
-										<input x-model="values1.start" type="number"/>
-										<span> <span x-text="get_value_2_name()"></span> (start)</span>
-									</label>
-									
-									<label>
-										<input x-model="values1.end" type="number"/>
-										<span> <span x-text="get_value_2_name()"></span> (end)</span>
-									</label>
-									
-								</div>
-								
 							</template>
 							
 							<footer>
