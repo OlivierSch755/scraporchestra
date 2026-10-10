@@ -23,7 +23,10 @@ The main benefits are:
 ## Architecture
 
 ```mermaid
-
+---
+config:
+  layout: dagre
+---
 flowchart
 
 
