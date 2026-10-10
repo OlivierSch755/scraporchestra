@@ -98,40 +98,6 @@ class websocket web
 * $\color{#0f8}{\textsf{█}}$ ScrapOrchestra implementation
 
 
-
-
-## Project & components
-
-A project in ScrapOrchestra is a collection of [components](components) (Node.js wrappers around external Linux programs, together with the configuration and session data needed to manage them).
-
-
-There are currently 3 implemented components that can be accessed and configured per-project via the web app: 
-
-* [Sushi](https://elk-audio.github.io/elk-docs/html/sushi/sushi_overview.html) by Elk Audio (Audio/DSP engine, plugin host)
-* MIDI Connections manager (small monitor & manager for ALSA MIDI sequencer inspired by [midiminder](https://github.com/mzero/midiminder))
-* [Midish](https://midish.org/) by Alexandre Ratchov (MIDI transport, MIDI filter)
-
-ScrapOrchestra projects can also interface with [Pure Data](https://github.com/pure-data) by Miller Puckette but with important limitations. 
-See the dedicated [readme](https://github.com/OlivierSch755/scraporchestra/tree/main/components/pure_data) for more information. 
-
-### Project structure  
-
-A ScrapOrchestra project lives in a directory that contains:
-* **project.json** file, which contains:
-  * project metadata (name, creation date...)
-  * a list of required components + some basic config for them
-* Optional files created and managed by components to hold their session data
-
-Loading a project consists of: 
-* Reading the list of installed components in the **project.json** file
-* **Loading** and **initializing** each component
-  * This usually means spawning one or more child processes
-  * Restoring optional session data using whatever mechanism the external program provides (stdin CLI, GRPC)
-* Notifying readiness after system has reached a state that is safe for user to start playing music. 
-
-The ScrapOrchestra Engine also ensures that resources are properly released when closing projects. 
-
-
 ## Installation
 
 
@@ -186,7 +152,7 @@ sudo ln -s /opt/node-v24.19.0/bin/npx /usr/local/bin/npx
 rm node-v24.19.0-linux-arm64.tar.xz
 ```
 
-Version 24.19.0 happens to be the latest release at the time of writing this documentation. Many other versions should work too. 
+Version 24.19.0 happens to be the latest release at the time of writing this documentation. Anything >= 18 should work out of the box.
 
 
 ### Installing ScrapOrchestra on Elk Pi 
@@ -290,6 +256,39 @@ node /opt/scraporchestra/bin/webapp.js
 Once running, ScrapOrchestra exposes a web server on port 3000. 
 
 That is to say, if your Elk Box IP address is ```192.168.0.1```, you can reach the web interface by opening ```http://192.168.0.1:3000``` in a web browser running on a device connected to the same network. 
+
+
+
+## Project & components
+
+A project in ScrapOrchestra is a collection of [components](components) (Node.js wrappers around external Linux programs, together with the configuration and session data needed to manage them).
+
+
+There are currently 3 implemented components that can be accessed and configured per-project via the web app: 
+
+* [Sushi](https://elk-audio.github.io/elk-docs/html/sushi/sushi_overview.html) by Elk Audio (Audio/DSP engine, plugin host)
+* MIDI Connections manager (small monitor & manager for ALSA MIDI sequencer inspired by [midiminder](https://github.com/mzero/midiminder))
+* [Midish](https://midish.org/) by Alexandre Ratchov (MIDI transport, MIDI filter)
+
+ScrapOrchestra projects can also interface with [Pure Data](https://github.com/pure-data) by Miller Puckette but with important limitations. 
+See the dedicated [readme](https://github.com/OlivierSch755/scraporchestra/tree/main/components/pure_data) for more information. 
+
+### Project structure  
+
+A ScrapOrchestra project lives in a directory that contains:
+* **project.json** file, which contains:
+  * project metadata (name, creation date...)
+  * a list of required components + some basic config for them
+* Optional files created and managed by components to hold their session data
+
+Loading a project consists of: 
+* Reading the list of installed components in the **project.json** file
+* **Loading** and **initializing** each component
+  * This usually means spawning one or more child processes
+  * Restoring optional session data using whatever mechanism the external program provides (stdin CLI, GRPC)
+* Notifying readiness after system has reached a state that is safe for user to start playing music. 
+
+The ScrapOrchestra Engine also ensures that resources are properly released when closing projects. 
 
 
 ## License
