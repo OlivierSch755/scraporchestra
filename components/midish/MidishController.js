@@ -3,6 +3,11 @@ const readline = require("node:readline");
 
 const {parseFilterRules} = require("./lib/filters.js");
 
+const Evspec = require("./lib/evspec.js");
+
+const {isDeepStrictEqual} = require("node:util");
+
+
 
 const defaultState = {
 	outlist: [],
@@ -186,6 +191,13 @@ class MidishController extends MidishControllerBaseClass{
 	}
 	loop_mode = false;
 	
+	tapev = null;
+	tap = null;
+	
+	tempo_factor = 100;
+	
+	
+	
 	last_emitted_position = {...defaultPosition};
 	
 	metronome = {
@@ -213,16 +225,13 @@ class MidishController extends MidishControllerBaseClass{
 		})
 	}
 	
-	
-	
 	async loadSession(file_msh, do_not_notify_yet = false){
 		 const res = await this.sendCommand(`load "${file_msh}"`);
 		 
 		 if( res.data.length ){
 			 throw {
-				 message : "Could not restore midish session",
+				 message : "Could not restore midish session : " + res.data.join("\n"),
 				 type : "session_restore",
-				 message : res.data.join("\n")
 			 };
 		 }
 		 
@@ -302,6 +311,17 @@ class MidishController extends MidishControllerBaseClass{
 		});
 	}
 	
+	async notifyTapEvChange(){
+		const state = this.session_data?.state;
+		if(state){
+			state.tapev = this.tapev;
+			state.tap = this.tap;
+		}
+		this.emit("notification", {
+			type : "tap",
+			data : {tapev: this.tapev, tap : this.tap}
+		});
+	}
 	
 	async notifyLoopModeChange(){
 		
@@ -335,6 +355,27 @@ class MidishController extends MidishControllerBaseClass{
 		});
 	}
 	
+	async notifyTempoFactorChange(){
+		if(this.session_data){
+			this.session_data.tempo_factor = this.tempo_factor;
+		}
+		
+		this.emit("notification", {
+			type : "tempo_factor",
+			data : this.tempo_factor
+		});
+	}
+	
+	
+	async notifyCurrentFilterChange(){
+		this.emit("notification", {
+			type : "filter_definition",
+			data : this.current_filter_definition
+		});
+	}
+	
+	
+	
 	
 	_getTrackByName(track_name){
 		return this.session_data?.state?.tracklist?.find(track => track.name === track_name);
@@ -364,7 +405,6 @@ class MidishController extends MidishControllerBaseClass{
 			track.flags.delete("mute");
 		}
 		
-		
 		this.emit("notification", {
 			type : "mute",
 			data : {
@@ -373,8 +413,6 @@ class MidishController extends MidishControllerBaseClass{
 			}
 		});
 	}
-	
-	
 	
 	
 	async getSessionData( burst_cache = false ){
@@ -397,6 +435,11 @@ class MidishController extends MidishControllerBaseClass{
 			end : state.curlen
 		}
 		
+		this.tap = state.tap;
+		this.tapev = state.tapev;
+		
+		const tempo_factor = await this.getTempoFactor();
+		
 		const session_data = {
 			position : this.position,
 			length,
@@ -405,12 +448,24 @@ class MidishController extends MidishControllerBaseClass{
 			playing_mode : this.playing_mode,
 			loop : this.loop_mode,
 			metronome : this.metronome,
+			tempo_factor
 		}
 		this.session_data = session_data; 
 		return session_data;
 	}
 	
+	async set_tap( mode ){
+		const res = await this.sendCommand(`tap ${mode}`);
+		this.tap = mode;
+		this.notifyTapEvChange();
+	}
 	
+	async set_tapev( raw_tapev_object ){
+		const ev = Evspec.hydrateEvent(raw_tapev_object);
+		const res = await this.sendCommand(`tapev ${ev}`);
+		this.tapev = ev;
+		this.notifyTapEvChange();
+	}
 	
 	async reset(){
 		const res = await this.sendCommand(`reset`);
@@ -445,7 +500,6 @@ class MidishController extends MidishControllerBaseClass{
 		this.notifyLoopModeChange();
 	}
 	
-	
 	async add_filter(filter_name){
 		const res = await this.sendCommand(`fnew ${filter_name}`);
 		if(res.data.length){
@@ -453,6 +507,94 @@ class MidishController extends MidishControllerBaseClass{
 		}
 		this.notifySessionChange();
 	}
+	
+	async add_filter_rule(rule, do_not_notify_yet = false){
+		
+		let res;
+		const match = Evspec.hydrateEvent(rule.match);
+	
+		switch(rule.type){
+			case "evmap":{
+				const action = Evspec.hydrateEvent(rule.action);
+				res = await this.sendCommand(`fmap ${match} ${action}`);
+				break;
+			}
+			case "transp": {
+				res = await this.sendCommand(`ftransp ${match} ${rule.halftones}`);
+				break;
+			}
+			case "vcurve": {
+				res = await this.sendCommand(`fvcurve ${match} ${rule.weight}`);
+				break;
+			}
+		}
+		
+		if(res.data.length){
+			throw { message : res.data.join("\n")}
+		}
+		
+		if(do_not_notify_yet) return;
+		await this.get_filter_def(true);
+		this.notifyCurrentFilterChange();
+	}
+	
+	async delete_filter_rule(rule){
+		
+		let def = await this.get_filter_def();
+		
+		
+		rule.match = Evspec.hydrateEvent(rule.match);
+		if(rule.action) rule.action = Evspec.hydrateEvent(rule.action);
+		
+		/*
+			Midish can unmap evmaps 
+			but cannot delete transposition  nor velocity-curve filters
+			so we reset the filter
+			and recreate all rules after filtering
+		*/
+		
+		
+		// should really have a rule class to test equality
+		def = def.filter( tested_rule => {
+			
+			if(tested_rule.type !== rule.type){
+				return true;
+			}
+			
+			if( tested_rule.match?.toString() !== rule.match?.toString() ){
+				return true;
+			}
+			
+			if( tested_rule.action?.toString() !== rule.action?.toString() ){
+				return true;
+			}
+			
+			if( tested_rule.halftones !== rule.halftones ){
+				return true;
+			}
+			
+			if( tested_rule.weight !== rule.weight ){
+				return true;
+			}
+			
+			return false;
+			
+		} )
+		
+		await this.sendCommand(`freset`); 
+		
+		for(let rule of def){
+			
+			console.log("adding", rule)
+			
+			await this.add_filter_rule(rule, true);
+		}
+		
+		await this.get_filter_def(true);
+		this.notifyCurrentFilterChange();
+		
+	}
+	
 	
 	async get_filter_def( burst_cache = false ){
 		
@@ -485,8 +627,6 @@ class MidishController extends MidishControllerBaseClass{
 		this.notifySelectionChange();
 	}
 	
-	
-	
 	async setSlaveMode(slave){
 		
 		this.slave = slave;
@@ -512,22 +652,36 @@ class MidishController extends MidishControllerBaseClass{
 		
 	}
 	
+	async getTempoFactor(){
+		const res = await this.sendCommand(`getfac`);
+		const factor = Number(res.data);
+		return factor;
+	}
 	
-	
+	async setTempoFactor(factor){
+		factor = Number(factor);
+		if(factor < 50 || factor > 200 ){
+			 throw {
+				 message : "Tempo factor must be between 50 and 200",
+				 type : "set_tempo",
+			 };
+		}
+		await this.sendCommand(`fac ${factor}`);
+		this.tempo_factor = factor;
+		this.notifyTempoFactorChange();
+	}
 	
 	async initNewSession(){
 		await this.sendCommand(`fnew default`);
-		await this.sendCommand(`fmap { any {1 1..15} } { any {0 1..15} }`);
+		await this.sendCommand(`fmap { any {1 0..15} } { any {0 0..15} }`);
 	}
-	
 	
 	async initDevices(config){
 		await this.sendCommand(`dnew 0 "Midish-Transport:2" wo`);
 		await this.sendCommand(`dnew 1 "Midish-Transport:3" ro`);
-		await this.setSlaveMode( (config.slave_mode ?? false ) );
+		await this.setSlaveMode( (config.slave ?? false ) );
 		await this.toogleLoop( (config.loop ?? false ) );
 	}
-	
 	
 	
 }
@@ -639,6 +793,17 @@ function parseConfig(lines) {
 			case "curlen":
 				result[key] = Number(value);
 				break;
+
+			case "tapev" : 
+				result[key] = value === "nil" ? null : value;
+				try{
+					result[key] = Evspec.hydrateString(value);
+				}	
+				catch(err){
+					console.log(err)
+				}
+				break;
+
 
 			default:
 				result[key] = value === "nil" ? null : value;

@@ -2,6 +2,9 @@ const path = require('node:path');
 const {spawn} = require("node:child_process");
 const fs = require("node:fs/promises");
 
+const SaveRestoreHookExec = require("./utils/save_restore.js");
+const {unary, getGrpcClient} =  require("./utils/grpc_helpers.js");
+
 const protobuf = require("protobufjs");
 const grpc = require("@grpc/grpc-js");
 const {AsyncValidator} = require("./editor/lib/async_validation.js");
@@ -10,6 +13,9 @@ const Dispatcher = require("engine/dispatcher");
 
 const {ComponentState} = require("engine/component");
 const {ComponentProcess} = require("engine/component/process");
+
+
+
 
 const {
 	ComponentError,
@@ -33,12 +39,14 @@ class SushiEditorCloseError extends SushiError{};
 // either env / static config file ...
 const proto = new protobuf.Root().loadSync("/usr/share/sushi/sushi_rpc.proto", { keepCase : true } );
 
+
+// various protobuf types (stubs) used here
 const { GetSushiApiVersion } = proto.lookupService("SystemController").methods;
 const { SaveSession, RestoreSession } = proto.lookupService("SessionController").methods;
 const SessionState = proto.lookupType("SessionState");
 const Status = proto.lookupEnum("Status").values 
 
-const ABANDON_TIMEOUT = 10_000; // how long we are willing to wait for sushi grpc to be available before we abandon.
+
 
 // Sushi GRPC api expected version (need to confirm that even outside of editor)
 // because we need to use saveSession and RestoreSession GRPC methods
@@ -96,6 +104,8 @@ class Sushi extends ComponentProcess{
 		this.osc_ip = config?.osc_ip ?? "127:0:0:1";
 		this.env = { ...process.env, ...( config?.env ?? {} ) };
 		
+		this.restored_session = false;
+		
 		this.project = project;
 		
 		// May not exist yet, but if we need to create / find it, this will be where the session file is to be found.
@@ -126,17 +136,17 @@ class Sushi extends ComponentProcess{
 		return session_data;
 	}
 	
+	
 	// Save sushi session in project dir
 	async saveProjectSession(){
-		
-		const client = createGrpcClient();
+		const client = await getGrpcClient();
 
 		try {
-			await waitForReady(client);
-			const res = await unary( client, SaveSession );
+			const res = await unary( client,  SaveSession );
 			
+			await SaveRestoreHookExec.onSessionSave(client, proto, res, this.session_bin_path + ".external.json" );
 			
-			
+			// save the binary session on disk
 			await fs.writeFile( 
 				path.join( this.project.dir, sushi_session_filename ), 
 				SessionState.encode(res).finish()
@@ -152,6 +162,66 @@ class Sushi extends ComponentProcess{
 		}
 		
 	}
+	
+	async restoreProjectSession(client){
+		const session = await this.getSession();
+		
+		if(session){
+			
+			// Restoring session is a Sushi async operation, 
+			// so we need to resolve the response status before we can notifiy readiness 
+			const asyncValidator = new AsyncValidator(proto);
+			
+			// Decode flag means we want the decoded AsyncCommandResponse (instead of raw buffer that is wrapped into proxymessages for editor web client) 
+			asyncValidator.attachToGrpcClient(client, "decode"); 
+			
+			// Call SessionController.RestoreSession 
+			// res here is only an ACK for the request, the task is not completed at this point
+			
+			const res = await new Promise((resolve, reject) => {
+				client.makeUnaryRequest(
+					RestoreSession.path,
+					x => x,
+					d => RestoreSession.resolvedResponseType.decode(d),
+					session,
+					new grpc.Metadata(),
+					{},
+					(err, res) => err ? reject(err) : resolve(res)
+				);
+			});
+			
+			// awaits for a notification matching res.id and gives the actual result
+			// now we can be sure if task succeeded or not
+			const result = await asyncValidator.processCommandResponse(res);
+			
+			if( result.status.status !== Status.SUCCESS){
+				this.state = ComponentState.ERROR;
+				// cleanup, we do not want a stray GRPC stream taking resources.
+				asyncValidator.close();
+				throw new SushiEditorCannotRestoreSessionError("Cannot restore Sushi Session");
+			}
+			
+			// restore external data if we have some
+			
+			try{
+				await SaveRestoreHookExec.onSessionRestore(client, proto, session, this.session_bin_path + ".external.json");
+			}
+			catch(err){
+				console.warn("error while restoring external data in session", err)
+			}
+			
+			// cleanup, we do not want a stray GRPC stream taking resources.
+			// we could close it earlier but I hope someday it will be useful in onSessionRestore.
+			asyncValidator.close();
+			
+			// user might be interested in knowing whether current Sushi instance was loaded from a restored binary session or a json config file.
+			this.restored_session = true;
+			
+		} else {
+			console.log("No Sushi session restored")
+		}
+	}
+	
 	
 	// Start sushi and make sure everything is ok then report
 	async initialize(){
@@ -188,57 +258,15 @@ class Sushi extends ComponentProcess{
 		
 		// Do GRPC waitForReady + call GetSushiApiVersion to make sure sushi is live 
 		
-		const client = createGrpcClient();
-		
-		await waitForReady(client);
+		const client = await getGrpcClient();
 		const version_res = await unary(client, GetSushiApiVersion);
 
 		if (version_res.value !== EXPECTED_API_VERSION) {
 			throw new Error("Api version mismatch");
 		}
 			
-			
 		// If we have a previously saved session, we restore it	
-		const session = await this.getSession();
-		if(session){
-			
-			// Restoring session is a Sushi async operation, 
-			// so we need to resolve the response status before we can notifiy readiness 
-			const asyncValidator = new AsyncValidator(proto);
-			
-			// Decode flag means we want the decoded AsyncCommandResponse (instead of raw buffer that is wrapped into proxymessages for editor web client) 
-			asyncValidator.attachToGrpcClient(client, "decode"); 
-			
-			// Call SessionController.RestoreSession 
-			// res here is only an ACK for the request, the task is not completed at this point
-			
-			const res = await new Promise((resolve, reject) => {
-				client.makeUnaryRequest(
-					RestoreSession.path,
-					x => x,
-					d => RestoreSession.resolvedResponseType.decode(d),
-					session,
-					new grpc.Metadata(),
-					{},
-					(err, res) => err ? reject(err) : resolve(res)
-				);
-			});
-			
-			// awaits for a notification matching res.id and gives the actual result
-			// now we can be sure if task succeeded or not
-			const result = await asyncValidator.processCommandResponse(res);
-			
-			// cleanup, we do not want a stray GRPC stream taking resources.
-			asyncValidator.close();
-			
-			if( result.status.status !== Status.SUCCESS){
-				this.state = ComponentState.ERROR;
-				throw new SushiEditorCannotRestoreSessionError("Cannot restore Sushi Session");
-			}
-			
-		} else {
-			console.log("No Sushi session restored")
-		}
+		await this.restoreProjectSession(client);
 		
 		client.close();
 		this.state = ComponentState.READY;
@@ -306,31 +334,7 @@ class Sushi extends ComponentProcess{
 	}
 }
 
-function createGrpcClient(){
-	return new grpc.Client("localhost:51051", grpc.credentials.createInsecure());
-}
 
-function waitForReady(client) {
-	return new Promise((resolve, reject) => {
-		client.waitForReady(Date.now() + ABANDON_TIMEOUT, err =>
-			err ? reject(err) : resolve()
-		);
-	});
-}
-
-function unary( client, method, data = {} ) {
-	return new Promise((resolve, reject) => {
-		client.makeUnaryRequest(
-			method.path,
-			x => method.resolvedRequestType.encode(x).finish(),
-			d => method.resolvedResponseType.decode(d),
-			data,
-			new grpc.Metadata(),
-			{},
-			(err, res) => err ? reject(err) : resolve(res)
-		);
-	});
-}
 
 
 

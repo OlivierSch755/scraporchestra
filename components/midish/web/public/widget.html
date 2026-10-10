@@ -37,8 +37,8 @@
 			</article>
 		</template>
 	
-	
-		<!-- Session START -->
+
+		<!-- SESSION  -->
 		<template x-if="$store.midish.session_loaded">
 		
 			<section>
@@ -83,6 +83,15 @@
 					<input type="checkbox" :checked="$store.midish.session.loop"  @change.prevent="requestSetLoopMode($el.checked)" class="mono_input">
 					Loop
 				</label>
+				
+				<!-- TEMPO FACTOR CTRL -->
+				<form @submit.prevent="requestTempoFactorFormSubmit($el)" class="mono_input">
+					<label>
+						<input :value="$store.midish.session.tempo_factor" type="number" min="50" max="200" step="1"  name="tempo_factor">
+						Tempo factor
+					</label>
+				</form>
+				
 			
 				<!-- SLAVE MODE -->
 				<label>
@@ -108,7 +117,6 @@
 				<section x-data="togglable_section(false, 4, 'Metronome')">
 					<template x-if="open">
 						<form @submit.prevent="requestSetMetronomeFormSubmit($el)" x-data="{get metro(){return $store.midish.session.metronome}}">
-							<h5>Metronome</h5>
 							<label>
 								
 								<select required name="enabled" x-model="metro.enabled">
@@ -161,8 +169,6 @@
 					</template>
 				</section>
 				
-				
-				
 				<!-- TRACKS -->
 				<section x-data="togglable_section(false, 4, 'Tracks')">
 					<template x-if="open">
@@ -196,13 +202,15 @@
 					</template>
 				</section>
 				
-				<section x-data="togglable_section(true, 4, 'Filters')">
+				<!-- FILTERS -->
+				<section x-data="togglable_section(false, 4, 'Filters')">
 					<template x-if="open">
 					
 						<div class="section" x-data = "{
 							get current_filter(){return $store.midish.session.state.curfilt},
-							get filters(){return $store.midish.session.state.filtlist}
-						}">
+							get filters(){return $store.midish.session.state.filtlist},
+							get rules(){return $store.midish.current_filter_definition}
+						}"  x-init="$store.midish.get_filter_rules()">
 							<nav>
 								<label>
 									<select x-model="current_filter">
@@ -216,159 +224,52 @@
 							</nav>
 						
 							<template x-if="current_filter">
-								<div class="section" x-data="{ rules : [] }" x-init="get_filter_rules().then( r => rules = r)">
+								<div class="section">
 								
 									<h5>Rules in Filter <em x-text="current_filter"></em></h5>
 									
 									<template x-for="(rule, rule_id) of rules" :key="rule_id">
 									
 										<article>
-										
-											<template x-if="rule.type === 'vcurve'">
-												<dl>
-													<div class="entry">
-														<dt>Type</dt>
-														<dd>Velocity Curve</dd>
-													</div>
-													
+											<dl>
 												<div class="entry">
-														<dt>Devices</dt>
-														<dd x-text="rule.velocityCurve.devices"></dd>
-													</div>
-													
+													<dt>Type</dt>
+													<dd x-text="rule.type"></dd>
+												</div>
+												
+												<div class="entry">
+													<dt>Match</dt>
+													<dd x-text="rule.match"></dd>
+												</div>
+												
+												<template x-if="rule.type === 'evmap'">
 													<div class="entry">
-														<dt>Channels</dt>
-														<dd x-text="rule.velocityCurve.channels"></dd>
+														<dt>Action</dt>
+														<dd x-text="rule.action"></dd>
 													</div>
-													
+												</template>	
+												
+												<template x-if="rule.type === 'vcurve'">
 													<div class="entry">
 														<dt>Weight</dt>
-														<dd x-text="rule.velocityCurve.weight"></dd>
+														<dd x-text="rule.weight"></dd>
 													</div>
-													
-												</dl>	
+												</template>	
 												
-											</template>	
-											<template x-if="rule.type === 'transp'">
-												<dl>
+												<template x-if="rule.type === 'transp'">
 													<div class="entry">
-														<dt>Type</dt>
-														<dd>Transpose</dd>
+														<dt>Halftones</dt>
+														<dd x-text="rule.halftones"></dd>
 													</div>
-													
-												<div class="entry">
-														<dt>Devices</dt>
-														<dd x-text="rule.transpose.devices"></dd>
-													</div>
-													
-													<div class="entry">
-														<dt>Channels</dt>
-														<dd x-text="rule.transpose.channels"></dd>
-													</div>
-													
-													<div class="entry">
-														<dt>Semitones</dt>
-														<dd x-text="rule.transpose.semitones"></dd>
-													</div>
-													
-												</dl>	
+												</template>	
 												
-											</template>
-										
-											<template x-if="rule.type === 'evmap'">
-												<dl>
-													<div class="entry">
-														<dt>Type</dt>
-														<dd>Event Map <em x-text="rule.match.type"></em></dd>
-													</div>
-													
-													<div class="entry">
-														<dt>Devices</dt>
-														<dd>
-															<span x-text="rule.match.devices"></span>
-															→
-															<span x-text="rule.action.devices"></span>
-														</dd>
-													</div>
-													
-													<div class="entry">
-														<dt> Channels</dt>
-														<dd>
-															<span x-text="rule.match.channels"></span>
-															→
-															<span x-text="rule.action.channels"></span>
-														</dd>
-														
-													</div>
-													
-													<template x-if="rule.match.type ==='note'">
-														<div class="entry">
-															<dt>Notes</dt>
-															<dd>
-																<span x-text="rule.match.notes"></span>
-																→
-																<span x-text="rule.action.notes"></span>
-															</dd>
-														</div>
-													</template>
-													
-													<template x-if="rule.match.type ==='xctl'">
-														<div class="entry">
-															<dt>Controllers</dt>
-															<dd>
-																<span x-text="rule.match.controllers"></span>
-																→
-																<span x-text="rule.action.controllers"></span>
-															</dd>
-														</div>
-													</template>
-													
-													<template x-if="rule.match.type ==='xpc'">
-														<div class="entry">
-															<dt>Bank</dt>
-															<dd>
-																<span x-text="rule.match.bank"></span>
-																→
-																<span x-text="rule.action.bank"></span>
-															</dd>
-														</div>
-													</template>
-													
-													<template x-if="rule.match.type ==='xpc'">
-														<div class="entry">
-															<dt>Patch</dt>
-															<dd>
-																<span x-text="rule.match.patch"></span>
-																→
-																<span x-text="rule.action.patch"></span>
-															</dd>
-														</div>
-													</template>
-													
-													<template x-if="rule.match.type ==='nrpn'">
-														<div class="entry">
-															<dt>Parameters</dt>
-															<dd>
-																<span x-text="rule.match.NRPN_parameter_number"></span>
-																→
-																<span x-text="rule.action.NRPN_parameter_number"></span>
-															</dd>
-														</div>
-													</template>
-													
-													<template x-if="rule.match.type ==='nrpn'">
-														<div class="entry">
-															<dt>Values</dt>
-															<dd>
-																<span x-text="rule.match.NRPN_parameter_value"></span>
-																→
-																<span x-text="rule.action.NRPN_parameter_value"></span>
-															</dd>
-														</div>
-													</template>
-													
-												</dl>
-											</template>
+											</dl>	
+											
+											<footer>
+												<button :disabled="requestInProgress" @click="requestDeleteFilterRule(rule)">Delete</button>
+											</footer>
+											
+											
 										</article>
 										
 									</template>
@@ -377,9 +278,9 @@
 							</template>
 						
 							<footer>
-								<button class="todo" @click="$store.views.add_midish_filter = true">Add</button>
+								<button class="todo" @click="$store.views.add_midish_filter_rule = true">Add Rule</button>
+								<button class="todo" @click="$store.views.add_midish_filter = true">Add Filter</button>
 							</footer>
-							
 							
 							<dialog x-data="dialog('add_midish_filter')">
 								<h5 class="dialog_title">New filter</h5>
@@ -395,15 +296,75 @@
 								</section>
 							</dialog>
 							
-							
-							
-							
-							
+							<dialog x-data="dialog('add_midish_filter_rule')">
+								<h5 class="dialog_title">New rule in filter <span x-text="current_filter"></span> </h5>
+								<section x-data="midish_filter_rule_builder()">
+									
+									<label>
+										<select x-model="rule_type">
+											<option value="evmap">Event Map</option>
+											<option value="transp">Transpose</option>
+											<option value="vcurve">Velocity Curve</option>
+										</select>
+										Rule type
+									</label>
+
+									<!-- 
+										 I wish we didn't have to repeat the rule.match block 
+										 but it's currently needed to refresh the UI (select) of Evspec allowed Types 
+										 upon Rule.type change
+									 -->
+									<template x-if="rule.type === 'evmap'">
+										<div class="section">
+											<article x-data="rule.match">
+												<h6>Match</h6>
+												<template x-load_template="midish_Evspec_template"></template>
+											</article>
+											<article x-data="rule.action">
+												<h6>Action</h6>
+												<template x-load_template="midish_Evspec_template"></template>
+											</article>
+										</div>
+									</template>
+									
+									<template x-if="rule.type === 'transp'">
+										<div class="section">
+											<article x-data="rule.match">
+												<h6>Match</h6>
+												<template x-load_template="midish_Evspec_template"></template>
+											</article>
+											<label>
+												<input type="number" x-model="rule.halftones" min="0" max="127">
+												Halftones
+											</label>
+										</div>
+									</template>
+									
+									<template x-if="rule.type === 'vcurve'">
+										<div class="section">
+											<article x-data="rule.match">
+												<h6>Match</h6>
+												<template x-load_template="midish_Evspec_template"></template>
+											</article>
+											<label>
+												<input type="number" x-model="rule.weight" min="-63" max="63">
+												Velocity Weight
+											</label>
+										</div>
+									</template>
+									
+
+									<footer>
+										<button @click="submit_filter_rule()">Add</button>
+									</footer>
+								</section>
+							</dialog>
 							
 						</div>
 					</template>
 				</section>
 				
+				<!-- TIME -->
 				<section x-data="togglable_section(false, 4, 'Time events')">
 					<template x-if="open">
 						
@@ -456,6 +417,36 @@
 					</template>
 				</section>
 				
+				<!-- TAPSTART -->
+				<section x-data="togglable_section(false, 4, 'Tap start')">
+					<template x-if="open">
+					
+						<div x-data="tapev_builder()" class="section">
+						
+							<label>
+								<select x-model="enabled">
+									<option>off</option>
+									<option>start</option>
+									<option>tempo</option>
+								</select>
+								Enabled
+							</label>
+							
+							<template x-load_template="midish_Evspec_template"></template>
+							
+							<footer>
+								<button @click="submit()">Submit</button>
+							</footer>
+							
+						</div>
+					</template>
+				</section>
+				
+				
+				
+				
+				
+				<!-- TRANSPORT -->
 				<footer x-data="{ get mode(){ return $store.midish.session.playing_mode} }">
 					
 					<button :disabled="mode ==='play'" @click="requestPlay">Play</button>
@@ -495,6 +486,59 @@
 			</footer>
 
 		</form>
+		
+		<template id="midish_Evspec_template">
+			<div>
+				<label>
+					<select x-model="type_name">
+						<template x-for="(Type,name) of Types" :key="name" x-data="console.log('type', Types)">
+							<option :selected="(name === type_name)" x-text="name" :value="name"></option>
+						</template>
+					</select>
+					Event type
+				</label>
+				
+				<template x-if="has_channels_and_devices()">
+					<div class="section">
+						<label>
+							<input x-model="ev.channels.start" type="number"/>
+							Channel (start)
+						</label>
+						
+						<label>
+							<input x-model="ev.channels.end" type="number"/>
+							Channel (end)
+						</label>
+										
+						<label>
+							<input x-model="ev.devices.start" type="number"/>
+							Device (start)
+						</label>
+						
+						<label>
+							<input x-model="ev.devices.end" type="number"/>
+							Device (end)
+						</label>
+										
+					</div>
+				</template>
+				
+				<template x-for="(entry,index) in ev_keys" key="index">
+					<div class="section">
+						<label>
+							<input x-model="entry.val.start" type="number"/>
+							<span> <span x-text="entry.key"></span> (start)</span>
+						</label>
+						
+						<label>
+							<input x-model="entry.val.end" type="number"/>
+							<span> <span x-text="entry.key"></span> (end)</span>
+						</label>
+					</div>
+				</template>
+			</div>
+		</template>
+		
 	</div>
 		
 	

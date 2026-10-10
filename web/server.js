@@ -64,11 +64,6 @@ function startWebAppServer( application, options = options_template ){
 		const components_ctrler = await components_controller( application, wss );
 		app.use( '/components', components_ctrler );
 	
-		// app.get('/js/alpine.js', (req, res) => {
-			 // res.sendFile( path.join(__dirname, '/public', 'js', "alpine.3.15.12.min.js") );
-		// });
-		
-		
 		app.use( '/js/lib', front_libs_controller() );
 		
 		app.use( express.static(__dirname + '/public') );		

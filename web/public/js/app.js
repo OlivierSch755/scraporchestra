@@ -224,6 +224,55 @@ Alpine.store('project_manager', {
 		this.requestInProgress = false;
 	},
 
+	async requestDuplicateProject(project_name){
+		
+		this.requestInProgress = true;
+		let req;
+		try{
+			req = await fetch('/projects/api/duplicate/'+ project_name, {method:'post'});		
+			if(req.ok){ 
+				AppStatus.success("Project duplicated: " + project_name);
+				await this.reload();
+			}
+			else {
+				const res = await req.text();
+				throw "Could not duplicate project: " + res;
+			}
+		}
+		catch(err){
+			AppStatus.error(err);
+		}
+		
+		this.requestInProgress = false;
+	},
+
+	async requestRenameProject(project_name){
+		
+		const new_name = window.prompt(`Renaming ${project_name}` + "\nPlease type new project name.")
+		
+		if(!new_name) return;
+		
+		this.requestInProgress = true;
+		let req;
+		try{
+			req = await fetch('/projects/api/rename/'+ project_name + "/" + new_name, {method:'post'});		
+			if(req.ok){ 
+				AppStatus.success("Project renamed: " + new_name);
+				await this.reload();
+			}
+			else {
+				const res = await req.text();
+				throw "Could not rename project: " + res;
+			}
+		}
+		catch(err){
+			AppStatus.error(err);
+		}
+		
+		this.requestInProgress = false;
+	},
+
+
 
 	async ensure() {
 		if (this.loading || this.loaded) return;

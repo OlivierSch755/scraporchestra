@@ -36,7 +36,6 @@ class MidishController extends ComponentWebController {
 		
 		});
 		
-		
 		router.post("/api/seek/:bar", async (req, res) => {
 			await this.instance.controller?.goToMeasure(req.params.bar);
 			res.sendStatus(200);
@@ -44,6 +43,11 @@ class MidishController extends ComponentWebController {
 		
 		router.post("/api/select/:length", async (req, res) => {
 			await this.instance.controller?.setSelectLength(req.params.length);
+			res.sendStatus(200);
+		});
+		
+		router.post("/api/fac/:length", async (req, res) => {
+			await this.instance.controller?.setTempoFactor(req.params.length);
 			res.sendStatus(200);
 		});
 		
@@ -82,7 +86,24 @@ class MidishController extends ComponentWebController {
 		});
 		
 		
-
+		router.post( "/api/tapev" , async (req, res) => {
+			const {ev,enabled} = req.body
+			await this.instance.controller?.set_tapev(ev);
+			await this.instance.controller?.set_tap(enabled);
+			res.sendStatus( 200 );
+		});
+		
+		router.post( "/api/curfilt/add_rule" , async (req, res) => {
+			const rule = req.body
+			await this.instance.controller?.add_filter_rule(rule);
+			res.sendStatus( 200 );
+		});
+		
+		router.post( "/api/curfilt/delete_rule" , async (req, res) => {
+			const rule = req.body
+			await this.instance.controller?.delete_filter_rule(rule);
+			res.sendStatus( 200 );
+		});
 		
 		
 		router.get("/api/session.json", async (req, res) => {
