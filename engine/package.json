@@ -17,7 +17,8 @@
     "./component/*": "./component/*.js",
     "./project_manager": "./project_manager.js",
     "./dispatcher": "./dispatcher.js",
-    "./application": "./application.js"
+    "./application": "./application.js",
+    "./states": "./states.js"
   },
   "bin" : {
 	  "cli.engine" : "./cli/engine_cli.js",

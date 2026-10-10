@@ -1,13 +1,14 @@
 {
   "name": "web",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "",
   "license": "MIT",
   "author": "Olivier Schwach",
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+	 "build:states": "esbuild ../engine/states.js --format=esm --outfile=public/js/lib/ressource_state.mjs"
   },
   "dependencies": {
     "express": "^5.2.1",
@@ -19,5 +20,9 @@
     ".": "./server.js",
     "./component_controller_class": "./component_web_controller_class.js",
     "./routes/*": "./routes/*.js"
+  } , 
+  "private": true,
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

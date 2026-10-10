@@ -1,7 +1,8 @@
 const { once } = require("node:events");
 const fs = require('node:fs/promises');
 
-const { Component, ComponentState } = require("./component.js")
+const { Component } = require("./component.js")
+const {RessourceState} = require("engine/states");
 const Dispatcher = require("../dispatcher.js");
 
 const {
@@ -36,7 +37,7 @@ class ComponentProcess extends Component{
 	
 	async close(options = {}){
 		
-		this.state = ComponentState.CLOSING;
+		this.state = RessourceState.CLOSING;
 		let err2;
 		
 		if (this.instance && this.instance.exitCode === null && !this.instance.killed) {
@@ -56,11 +57,11 @@ class ComponentProcess extends Component{
 		this.instance = null;
 		
 		if( err2 ){
-			this.state = ComponentState.ERROR;
+			this.state = RessourceState.ERROR;
 			throw err2;
 		}
 		
-		this.state = ComponentState.CLOSED;
+		this.state = RessourceState.CLOSED;
 		
 	}
 	
@@ -76,11 +77,10 @@ class ComponentProcess extends Component{
 		instance.once("close", (e) =>{
 			this.instance = null;
 			
-			if( this.state === ComponentState.CLOSING ) return;
-			this.state = ComponentState.ERROR;
+			if( this.state === RessourceState.CLOSING ) return;
+			this.state = RessourceState.ERROR;
 			
 			const err = new ComponentUnexpectedlyTerminatedError( `Component ${this.name} process should not have exited now` );
-			// this.emit("error", err ) ;
 			console.error(err);
 		} );	
 	}
@@ -88,7 +88,7 @@ class ComponentProcess extends Component{
 	handleError(instance){
 		instance.once("error", (err) =>{
 			this.instance = null;
-			this.state = ComponentState.ERROR;
+			this.state = RessourceState.ERROR;
 			const err2 = new ComponentError( `Component ${this.name} process error`  );
 			err2.cause = err;
 			// this.emit("error", err ) ;

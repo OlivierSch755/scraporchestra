@@ -1,9 +1,9 @@
-const { EventEmitter } = require('node:events');
 const path  = require('node:path');
 const fs = require('node:fs/promises');
 
-const { Component }= require("./component/component.js");
-const { lookupComponent }= require("./component/utils.js");
+const {Component}= require("./component/component.js");
+const {lookupComponent}= require("./component/utils.js");
+const {RessourceState,validateState} = require("./states.js");
 const Dispatcher = require("./dispatcher.js");
 
 class ProjectError {
@@ -24,18 +24,12 @@ class ComponentLoadError extends ProjectError{};
 
 class ComponentInitError extends ProjectError{};
 
-const ProjectState = {
-	ERROR : 1,
-	LOADING : 2,
-	OPEN : 3,
-	CLOSING : 4,
-	CLOSED : 5
-}
 
 
-class Project extends EventEmitter {
+
+class Project {
 	
-	_state = ProjectState.CLOSED;
+	_state = RessourceState.CLOSED;
 	
 	name;
 	config;
@@ -57,19 +51,18 @@ class Project extends EventEmitter {
 	}
 	
 	set state(state){
-		if( !Object.values(ProjectState).includes(state) ) throw new TypeError("Invalid Component state : " + state );
+		validateState(state);
 		Dispatcher.emit("project.state",  state )
 		this._state = state;
 	}
 	
 	constructor( abs_path_to_project_dir){
-		super();
-		this.name =  path.basename( abs_path_to_project_dir );
+		this.name = path.basename( abs_path_to_project_dir );
 		this.dir = abs_path_to_project_dir;  // used by components to load their own data
+		this.initialized = false;
 		this.components = {};
+		this.componentRuntimeStateChangeHandler = this.componentRuntimeStateChangeHandler.bind(this);
 	}
-	
-
 	
 	
 	async loadConfig() {
@@ -115,7 +108,7 @@ class Project extends EventEmitter {
 	}
 	
 	initializeComponents() {
-		return Promise.all(
+		return Promise.allSettled(
 			Object.values( this.components ).map(component =>
 				component.initialize().catch(err => {
 					
@@ -129,32 +122,60 @@ class Project extends EventEmitter {
 		);
 	}
 	
+	// handler for component state change after initialization 
+	componentRuntimeStateChangeHandler(){
+		
+		// If any component is in error state, then whole project inherits error state
+		const has_error = Object.values( this.components ).some( component => component.state === RessourceState.ERROR );
+		const still_loading =  Object.values( this.components ).some( component => component.state === RessourceState.LOADING );
+		
+		if( has_error && !still_loading ){
+			this.state = RessourceState.ERROR;
+			return;
+		}
+		
+		// If all component is in ready state, then whole project also becomes ready
+		const all_open = Object.values( this.components ).every( component => component.state === RessourceState.READY );
+		
+		if( all_open ){
+			this.state = RessourceState.READY;
+			return;
+		}
+		
+		
+		
+	}
+	
 	async initialize(){
 		
-		if(  this.state !== ProjectState.CLOSED ) {
+		if(  this.state !== RessourceState.CLOSED ) {
 			throw new ProjectNotOpenableError("Project is not in a state that allows initialization");
 		}
 		
-		this.state = ProjectState.LOADING;
-		
+		this.state = RessourceState.LOADING;
+		Dispatcher.on("component.state", this.componentRuntimeStateChangeHandler);
 		try{
 			this.loadComponents();
 			await this.initializeComponents();
 		}
 		catch(err){
-			this.state = ProjectState.ERROR;
+			this.state = RessourceState.ERROR;
 			throw err;
 		}
 		
-		this.state = ProjectState.OPEN;
+		// this.state = RessourceState.READY;
+		this.initialized = true;
+		
 		
 	}
 	
 	async close(){
-		if( this.state !== ProjectState.OPEN ) {
+		if( this.initialized === false ) {
 			throw new ProjectNotOpenedError("Cannot close a project that has not been initialized");
 		}
-		this.state = ProjectState.CLOSING;
+		this.state = RessourceState.CLOSING;
+		
+		Dispatcher.off("component.state", this.componentRuntimeStateChangeHandler);
 		
 		await Promise.all(
 			Object.values(this.components).map(component =>
@@ -168,7 +189,7 @@ class Project extends EventEmitter {
 			)
 		);
 		this.components = {};
-		this.state = ProjectState.CLOSED;
+		this.state = RessourceState.CLOSED;
 	}
 	
 	toJSON(){
@@ -182,5 +203,5 @@ class Project extends EventEmitter {
 
 
 module.exports = {
-	Project, ProjectState
+	Project
 }

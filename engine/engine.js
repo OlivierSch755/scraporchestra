@@ -1,7 +1,7 @@
 const util = require('node:util');
 const path = require('node:path');
-const { EventEmitter } = require('node:events');
-const { Project }= require("./project.js")
+const {Project} = require("./project.js")
+const {RessourceState, validateState} = require("./states.js");
 const Dispatcher = require("./dispatcher.js")
 
 class EngineError {
@@ -16,17 +16,7 @@ class EngineBusyError extends EngineError {};
 
 class ProjectLoadFailure extends EngineError {};
 
-
-const EngineState = {
-	ERROR : 1,
-	LOADING : 2,
-	READY : 3,
-	CLOSING : 4,
-	CLOSED : 5
-}
-
-
-class Engine extends EventEmitter {
+class Engine {
 	
 	project = null;
 	degraded = false;
@@ -36,7 +26,7 @@ class Engine extends EventEmitter {
 	}
 	
 	set state(state){
-		if( !Object.values(EngineState).includes(state) ) throw new TypeError("Invalid Component state : " + state );
+		validateState(state);
 		Dispatcher.emit("engine.state", state );
 		this._state = state;
 	}
@@ -45,11 +35,11 @@ class Engine extends EventEmitter {
 		
 		if( this.project ) throw new EngineBusyError("Engine is already running a project");
 		
-		if(  this.state === EngineState.LOADING ) {
+		if(  this.state === RessourceState.LOADING ) {
 			 throw new EngineBusyError("Engine is already loading a project");
 		}
 		
-		this.state = EngineState.LOADING;
+		this.state = RessourceState.LOADING;
 		
 		let project;
 		
@@ -61,7 +51,7 @@ class Engine extends EventEmitter {
 		}
 		catch(err){
 			this.project = null;
-			this.state = EngineState.CLOSED;
+			this.state = RessourceState.CLOSED;
 			const err2 = new ProjectLoadFailure(`Engine failed to load project ${abs_path_to_project_dir}`);
 			err2.cause = err;
 			throw err2;
@@ -71,12 +61,12 @@ class Engine extends EventEmitter {
 			Dispatcher.emit("engine.snapshot", this);
 			await project.initialize();
 			this.project = project;
-			this.state = EngineState.READY;
+			this.state = RessourceState.READY;
 			Dispatcher.emit("engine.snapshot", this);
 		}
 		catch(err){
 			this.project = null;
-			this.state = EngineState.READY;
+			this.state = RessourceState.READY;
 			Dispatcher.emit("engine.snapshot", this)
 			throw err;
 		}
@@ -89,18 +79,20 @@ class Engine extends EventEmitter {
 		let project = this.project;
 		
 		if( ! this.project ) throw new EngineError("Engine has no project to close.");
-		if( this.state === EngineState.CLOSED ) throw new EngineBusyError( "Engine is already closing." );
+		if( this.state === RessourceState.CLOSED ) throw new EngineBusyError( "Engine is already closing." );
+		if( this.state === RessourceState.LOADING ) throw new EngineBusyError( "Engine is busy initializing a project, please wait for this task to complete." );
 		
-		this.state = EngineState.CLOSING;
+		
+		this.state = RessourceState.CLOSING;
 		this.project = null;
 		
 		try{
 			await project.close();
 			Dispatcher.emit("engine.snapshot", this)
-			this.state = EngineState.CLOSED;
+			this.state = RessourceState.CLOSED;
 		}
 		catch(err){
-			this.state === EngineState.ERROR
+			this.state === RessourceState.ERROR
 			const err2 = new EngineDegradedError("Engine could not close project properly.");
 			err2.cause = err;
 			err2.project = project;

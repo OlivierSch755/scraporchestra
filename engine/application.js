@@ -57,7 +57,7 @@ class Application {
 			try{
 				await this.engine.open_project(project_path);
 			} catch(err){
-				console.warn("Could not autostart project",project_path )
+				console.warn("Could not autostart project",project_path, err )
 			}
 		}
 		

@@ -4,6 +4,8 @@ import '/js/lib/alpine_global.js';
 
 import { Toaster } from '/js/services/toaster.js';
 import { wsClient } from "/js/ws_client_wrapper.js";
+import RessourceStateGlobal from '/js/lib/ressource_state.mjs';
+const States = RessourceStateGlobal.RessourceState;
 
 const project_manager_route = "/projects/api/list";
 const engine_snapshot_route = "/engine/api/snapshot";
@@ -20,18 +22,10 @@ Alpine.store('engine', {
 	
 	degraded : false,
 	project : null,
-
-
-	States : {
-		ERROR : 1,
-		LOADING : 2,
-		READY : 3,
-		CLOSING : 4,
-		CLOSED : 5
-	},
-
+	States,
+	
 	getStateHumanReadable(state){
-		const key = Object.entries(this.States).find( ([key,value]) => value === state )?.[0] ?? "N/A";
+		const key = Object.entries(States).find( ([key,value]) => value === state )?.[0] ?? "N/A";
 		return key;
 	},
 
@@ -63,14 +57,23 @@ Alpine.store('engine', {
 
 	async requestProjectClose(){
 		this.requestInProgress = true;
-		let req, data;
+		let req;
+
 		try{
 			req = await fetch("/projects/api/close", {method:"post"})
+			if(req.ok){ 
+				AppStatus.success("Project closed");
+			}
+			else {
+				const res = await req.text();
+				throw "Could not close project: " + res;
+			}
 		}
 		catch(err){
 			AppStatus.error(err);
 		}
-		// data = await req.text();
+
+
 		this.requestInProgress = false;
 	},
 
@@ -272,7 +275,6 @@ Alpine.store('project_manager', {
 		this.requestInProgress = false;
 	},
 
-
 	async requestUpdateAutostart(project_name){
 		
 		let clearing = false; // empty value means we want to clear the field
@@ -305,8 +307,6 @@ Alpine.store('project_manager', {
 		this.requestInProgress = false;
 	},
 
-
-
 	async ensure() {
 		if (this.loading || this.loaded) return;
 		this.loading = true;
@@ -329,8 +329,6 @@ Alpine.store('project_manager', {
 		this.loaded = false;
 		await this.ensure();
 	}
-	
-	
 	
 
 });	

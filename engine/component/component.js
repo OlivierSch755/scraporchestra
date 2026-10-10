@@ -1,4 +1,3 @@
-const { EventEmitter, once } = require('node:events');
 const Dispatcher = require("../dispatcher.js");
 
 const {
@@ -16,15 +15,9 @@ function random_wait(){
 	});
 }
 
-const ComponentState = {
-	ERROR : 1,
-	LOADING : 2,
-	READY : 3,
-	CLOSING : 4,
-	CLOSED : 5
-}
+const {RessourceState,validateState} = require("../states.js");
 
-class Component extends EventEmitter {
+class Component {
 	
 	// careful this is static because it's for component discovery introspection
 	// use the regular non-static toJSON below is to expose state to clients
@@ -63,16 +56,16 @@ class Component extends EventEmitter {
 	
 	project;
 	name;
-	_state = ComponentState.CLOSED;
+	_state = RessourceState.CLOSED;
 	
 	get state(){
 		return this._state;
 	}
 	
 	set state(state){
-		if( !Object.values(ComponentState).includes(state) ) throw new TypeError("Invalid Component state : " + state );
-		Dispatcher.emit("component.state", {name : this.name, state} )
+		validateState(state)
 		this._state = state;
+		Dispatcher.emit("component.state", {name : this.name, state} )
 	}
 	
 	toJSON(){
@@ -81,21 +74,20 @@ class Component extends EventEmitter {
 	}
 	
 	constructor(project){
-		super();
 		this.project = project;
 		this.name = new.target.name;
 	}
 	
 	async initialize(){
-		this.state = ComponentState.LOADING;
+		this.state = RessourceState.LOADING;
 		// spawn process and await until ready
 		// await random_wait();
 		
-		this.state = ComponentState.READY;
+		this.state = RessourceState.READY;
 	}
 	
 	async close(){
-		this.state = ComponentState.CLOSING;
+		this.state = RessourceState.CLOSING;
 		let err2;
 		// Free ressources 
 		try{
@@ -106,16 +98,16 @@ class Component extends EventEmitter {
 		}
 		
 		if(err2){
-			this.state = ComponentState.ERROR;
+			this.state = RessourceState.ERROR;
 			throw err2;
 		}
 		
-		this.state = ComponentState.CLOSED;
+		this.state = RessourceState.CLOSED;
 	}
 	
 	
 	async saveProjectSession(){
-		if(this.state !== ComponentState.READY){
+		if(this.state !== RessourceState.READY){
 			throw new ComponentError("Will not save a component that has not explicitely succeeded in loading.");
 		}
 	}
@@ -131,4 +123,4 @@ class Component extends EventEmitter {
 
 
 
-module.exports = {Component, ComponentState};
+module.exports = {Component};

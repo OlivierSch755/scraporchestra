@@ -11,7 +11,7 @@ const {AsyncValidator} = require("./editor/lib/async_validation.js");
 
 const Dispatcher = require("engine/dispatcher");
 
-const {ComponentState} = require("engine/component");
+const {RessourceState} = require("engine/states");
 const {ComponentProcess} = require("engine/component/process");
 
 
@@ -195,7 +195,7 @@ class Sushi extends ComponentProcess{
 			const result = await asyncValidator.processCommandResponse(res);
 			
 			if( result.status.status !== Status.SUCCESS){
-				this.state = ComponentState.ERROR;
+				this.state = RessourceState.ERROR;
 				// cleanup, we do not want a stray GRPC stream taking resources.
 				asyncValidator.close();
 				throw new SushiEditorCannotRestoreSessionError("Cannot restore Sushi Session");
@@ -226,7 +226,7 @@ class Sushi extends ComponentProcess{
 	// Start sushi and make sure everything is ok then report
 	async initialize(){
 		
-		this.state = ComponentState.LOADING;
+		this.state = RessourceState.LOADING;
 		
 		const spawn_args = [
 			this.driver,
@@ -269,8 +269,11 @@ class Sushi extends ComponentProcess{
 		await this.restoreProjectSession(client);
 		
 		client.close();
-		this.state = ComponentState.READY;
 		
+		// error may have already happened early asynchronously in handleClose(), don't overwrite them blindly
+		if( this.state !== RessourceState.ERROR ){
+			this.state = RessourceState.READY;
+		}
 		
 	}
 	
@@ -285,7 +288,7 @@ class Sushi extends ComponentProcess{
 			this.editor_backend = editor_module.startSushiWebEditorBackend(proto , wss );
 			
 			this.editor_backend.proxy.once("error", (err)=>{
-				this.state = ComponentState.ERROR;
+				this.state = RessourceState.ERROR;
 			})
 			
 			await this.editor_backend.proxy.connect();

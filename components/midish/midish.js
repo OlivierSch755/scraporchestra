@@ -7,7 +7,7 @@ const { once } = require('node:events');
 
 // const {ProjectState} = require("engine/project");
 const Dispatcher = require("engine/dispatcher");
-const {ComponentState} = require("engine/component");
+const {RessourceState} = require("engine/states");
 const {ComponentProcess} = require("engine/component/process");
 
 const MidishController = require("./MidishController.js")
@@ -105,7 +105,7 @@ class Midish extends ComponentProcess{
 	*/
 	async initialize(){
 	
-		this.state = ComponentState.LOADING;
+		this.state = RessourceState.LOADING;
 		this.has_session = await this.hasSession();
 		
 		const spawn_args = ["-v"];
@@ -120,7 +120,7 @@ class Midish extends ComponentProcess{
 		this.bridge_instance = spawn( Midish.bridge_bin);
 		
 		this.bridge_instance.on("error", ()=>{
-			this.state = ComponentState.ERROR;
+			this.state = RessourceState.ERROR;
 		})
 		
 		const midishController = new MidishController();
@@ -159,7 +159,7 @@ class Midish extends ComponentProcess{
 		this.controller.initialized = true;
 		await this.controller.notifySessionChange();
 		
-		this.state = ComponentState.READY;
+		this.state = RessourceState.READY;
 	}
 
 	async close(){
