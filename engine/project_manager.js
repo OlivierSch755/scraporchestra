@@ -183,7 +183,7 @@ class ProjectManager {
 		)
 	}
 	
-	validateProjectName(project_name){
+	validateProjectName(name){
 		if (!/^[A-Za-z0-9_-]+$/.test(name)) {
 			throw new ProjectManagerError("Invalid project name");
 		}
