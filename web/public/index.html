@@ -110,22 +110,26 @@
 					<h1>No project loaded</h1>
 					
 						<section x-init="await project_manager.ensure()">
-						
 							<h2>Projects</h2>
-							
 							<template x-for="project_name in project_manager.projects">
 								<article :id="'project_' + project_name" >
 									<h3 x-text="project_name"></h3>
 									<button x-lock="engine" @click="engine.requestProjectStart(project_name)">
-										Load project
+										Load
+									</button>
+									<button x-lock="project_manager" @click="project_manager.requestRenameProject(project_name)">
+										Rename
+									</button>
+									<button x-lock="project_manager" @click="project_manager.requestDuplicateProject(project_name)">
+										Duplicate
 									</button>
 									<button x-lock="project_manager" @click="project_manager.requestDeleteProject(project_name)">
-										Delete project
+										Delete
 									</button>
 								</article>
 							</template>
-							
 						</section>
+						
 						<footer x-show="project_manager.loaded">
 								<button @click="$store.views.new_project = 1">Add</button>
 						</footer>

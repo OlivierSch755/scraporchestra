@@ -23,6 +23,16 @@ function createProjectsController( application ) {
 		res.sendStatus(200);
 	});
 
+	router.post("/api/duplicate/:project_name", async ( req, res ) => {
+		await projectManager.duplicateProject( req.params.project_name );
+		res.sendStatus(200);
+	});
+
+	router.post("/api/rename/:project_name/:new_name", async ( req, res ) => {
+		await projectManager.renameProject( req.params.project_name, req.params.new_name );
+		res.sendStatus(200);
+	});
+
 
 	Dispatcher.on("project.new", (project_config)=> {
 		web.wssNotifyToSubscribed( "project.new", project_config ) 

@@ -35,11 +35,7 @@ class ProjectManager {
 	
 	async createProject( name, optional_config = {} ){
 		
-		
-		if (!/^[A-Za-z0-9_-]+$/.test(name)) {
-			throw new ProjectManagerError("Invalid project name");
-		}
-				
+		this.validateProjectName(name); // check project name is valid (will throw if not)
 		
 		const abs_path_to_project_dir = this.getProjectPath(name);
 		const empty_project_config = Project.getEmptyConfig();
@@ -62,6 +58,25 @@ class ProjectManager {
 		}
 		Dispatcher.emit("project_manager.new", name)
 		this.projects.push(name);
+	}
+	
+	async duplicateProject( name, new_name ){
+		const project = this.getProject(name); // check project exists (will throw if not)
+		new_name = new_name || name + "_copy";
+		// verify destination name does not collide with another project
+		const name_already_exists = await this.getProject(new_name, true);
+		if(name_already_exists){
+			throw new ProjectManagerError(`Another project already exists with this name : ${new_name}`);
+		}
+		const old_path = this.getProjectPath(name);
+		const new_path = this.getProjectPath(new_name);
+		await fs.cp(old_path, new_path, {recursive: true});
+		this.projects.push(new_name);
+	}
+	
+	async renameProject( old_name, new_name ){
+		await this.duplicateProject(old_name, new_name)
+		await this.deleteProject(old_name);
 	}
 	
 	async deleteProject(name){
@@ -100,8 +115,7 @@ class ProjectManager {
 		
 	}
 	
-	
-	async getProject(name){
+	async getProject(name, do_not_throw = false){
 		let project;
 		let abs_path_to_project_dir = this.getProjectPath(name)
 
@@ -110,6 +124,7 @@ class ProjectManager {
 			await project.loadConfig();
 		}
 		catch(err){
+			if(do_not_throw) return null;
 			const err2 = new ProjectManagerError(`Project not found : ${name}`);
 			err2.cause = err;
 			throw err2;
@@ -120,7 +135,6 @@ class ProjectManager {
 	getProjectPath(name){
 		return path.join( this.projects_dir, name );
 	}
-	
 	
 	async saveProjectSession( project ){
 		
@@ -169,7 +183,11 @@ class ProjectManager {
 		)
 	}
 	
-	
+	validateProjectName(project_name){
+		if (!/^[A-Za-z0-9_-]+$/.test(name)) {
+			throw new ProjectManagerError("Invalid project name");
+		}
+	}
 }
 
 
