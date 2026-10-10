@@ -111,7 +111,7 @@
 					
 						<section x-init="await project_manager.ensure()">
 							<h2>Projects</h2>
-							<template x-for="project_name in project_manager.projects">
+							<template x-for="project_name in project_manager.projects" key="project_name">
 								<article :id="'project_' + project_name" >
 									<h3 x-text="project_name"></h3>
 									<button x-lock="engine" @click="engine.requestProjectStart(project_name)">
@@ -131,7 +131,8 @@
 						</section>
 						
 						<footer x-show="project_manager.loaded">
-								<button @click="$store.views.new_project = 1">Add</button>
+							<button @click="$store.views.new_project = 1">Add project</button>
+							<button @click="$store.views.auto_start = 1">Auto start</button>
 						</footer>
 
 						<dialog x-data="dialog('new_project')">
@@ -144,6 +145,24 @@
 								<small  id="project_name_hint" class="label_hint">Use only letters, numbers, underscores ( _ ) and hyphens ( - ).</small>
 								<footer>
 									<button type="submit">Add</button>
+								</footer>
+							</form>
+						</dialog>
+						
+						<dialog x-data="dialog('auto_start')">
+							<h2 class="dialog_title">Project AutoStart</h2>
+							<form @submit.prevent="project_manager.requestUpdateAutostart( new FormData($el).get('project_name') )" x-init="await project_manager.ensure(); await project_manager.get_autostart()">
+								<label>
+									<select name="project_name">
+										<option value="">None</option>
+										<template x-for="project_name in project_manager.projects" key="project_name">
+											<option :value="project_name" x-text="project_name" :selected="project_name === project_manager.auto_start_project" ></option>
+										</template>
+									</select>
+									Pick a project to start automatically when application launches
+								</label>
+								<footer>
+									<button type="submit">Confirm</button>
 								</footer>
 							</form>
 						</dialog>

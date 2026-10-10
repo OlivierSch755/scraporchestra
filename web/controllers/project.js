@@ -33,10 +33,24 @@ function createProjectsController( application ) {
 		res.sendStatus(200);
 	});
 
-
 	Dispatcher.on("project.new", (project_config)=> {
 		web.wssNotifyToSubscribed( "project.new", project_config ) 
 	});
+
+	router.post("/api/autostart/set/:project_name",  async ( req, res ) => {
+		const project_name = req.params.project_name;
+		await application.setProjectAutoStart( project_name );
+		res.sendStatus(200);
+	});
+	router.post("/api/autostart/clear",  async ( req, res ) => {
+		await application.setProjectAutoStart( null );
+		res.sendStatus(200);
+	});
+	
+	router.get("/api/autostart", (req, res) => {
+		res.json(application.config.auto_start_project);
+	});
+
 
 	router.post("/api/add_components/:project_name",  async ( req, res ) => {
 		const project_name = req.params.project_name;
