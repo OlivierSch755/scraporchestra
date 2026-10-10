@@ -5,6 +5,7 @@ const {parseFilterRules} = require("./lib/filters.js");
 
 const Evspec = require("./lib/evspec.js");
 
+const {isDeepStrictEqual} = require("node:util");
 
 
 
@@ -365,6 +366,17 @@ class MidishController extends MidishControllerBaseClass{
 		});
 	}
 	
+	
+	async notifyCurrentFilterChange(){
+		this.emit("notification", {
+			type : "filter_definition",
+			data : this.current_filter_definition
+		});
+	}
+	
+	
+	
+	
 	_getTrackByName(track_name){
 		return this.session_data?.state?.tracklist?.find(track => track.name === track_name);
 	}
@@ -496,6 +508,94 @@ class MidishController extends MidishControllerBaseClass{
 		this.notifySessionChange();
 	}
 	
+	async add_filter_rule(rule, do_not_notify_yet = false){
+		
+		let res;
+		const match = Evspec.hydrateEvent(rule.match);
+	
+		switch(rule.type){
+			case "evmap":{
+				const action = Evspec.hydrateEvent(rule.action);
+				res = await this.sendCommand(`fmap ${match} ${action}`);
+				break;
+			}
+			case "transp": {
+				res = await this.sendCommand(`ftransp ${match} ${rule.halftones}`);
+				break;
+			}
+			case "vcurve": {
+				res = await this.sendCommand(`fvcurve ${match} ${rule.weight}`);
+				break;
+			}
+		}
+		
+		if(res.data.length){
+			throw { message : res.data.join("\n")}
+		}
+		
+		if(do_not_notify_yet) return;
+		await this.get_filter_def(true);
+		this.notifyCurrentFilterChange();
+	}
+	
+	async delete_filter_rule(rule){
+		
+		let def = await this.get_filter_def();
+		
+		
+		rule.match = Evspec.hydrateEvent(rule.match);
+		if(rule.action) rule.action = Evspec.hydrateEvent(rule.action);
+		
+		/*
+			Midish can unmap evmaps 
+			but cannot delete transposition  nor velocity-curve filters
+			so we reset the filter
+			and recreate all rules after filtering
+		*/
+		
+		
+		// should really have a rule class to test equality
+		def = def.filter( tested_rule => {
+			
+			if(tested_rule.type !== rule.type){
+				return true;
+			}
+			
+			if( tested_rule.match?.toString() !== rule.match?.toString() ){
+				return true;
+			}
+			
+			if( tested_rule.action?.toString() !== rule.action?.toString() ){
+				return true;
+			}
+			
+			if( tested_rule.halftones !== rule.halftones ){
+				return true;
+			}
+			
+			if( tested_rule.weight !== rule.weight ){
+				return true;
+			}
+			
+			return false;
+			
+		} )
+		
+		await this.sendCommand(`freset`); 
+		
+		for(let rule of def){
+			
+			console.log("adding", rule)
+			
+			await this.add_filter_rule(rule, true);
+		}
+		
+		await this.get_filter_def(true);
+		this.notifyCurrentFilterChange();
+		
+	}
+	
+	
 	async get_filter_def( burst_cache = false ){
 		
 		if( !burst_cache && this.current_filter_definition){
@@ -573,7 +673,7 @@ class MidishController extends MidishControllerBaseClass{
 	
 	async initNewSession(){
 		await this.sendCommand(`fnew default`);
-		await this.sendCommand(`fmap { any {1 1..15} } { any {0 1..15} }`);
+		await this.sendCommand(`fmap { any {1 0..15} } { any {0 0..15} }`);
 	}
 	
 	async initDevices(config){

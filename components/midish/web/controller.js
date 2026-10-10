@@ -93,6 +93,18 @@ class MidishController extends ComponentWebController {
 			res.sendStatus( 200 );
 		});
 		
+		router.post( "/api/curfilt/add_rule" , async (req, res) => {
+			const rule = req.body
+			await this.instance.controller?.add_filter_rule(rule);
+			res.sendStatus( 200 );
+		});
+		
+		router.post( "/api/curfilt/delete_rule" , async (req, res) => {
+			const rule = req.body
+			await this.instance.controller?.delete_filter_rule(rule);
+			res.sendStatus( 200 );
+		});
+		
 		
 		router.get("/api/session.json", async (req, res) => {
 			const data = await this.instance.controller?.getSessionData();

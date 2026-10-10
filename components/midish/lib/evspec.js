@@ -261,13 +261,6 @@ class RangeValue{
 		this.end = this.max;
 	}
 	
-	set start(value){
-		if( value < this.min || value > this.max ){
-			throw new RangeError(`Event start value must be between ${this.min} and ${this.max}`);
-		}
-		this._start = value;
-	}
-	
 	static fromSetter(value){
 		
 		const rv = new this();
@@ -292,8 +285,18 @@ class RangeValue{
 		const [start,end] = string.split("..").map(Number);
 		const rv = new this();
 		rv.start = start;
-		rv.end = end;
+		
+		if(end === undefined) rv.end = rv.start; 	// single value
+		else rv.end = end; 							// range of values
+		
 		return rv;
+	}
+
+	set start(value){
+		if( value < this.min || value > this.max ){
+			throw new RangeError(`Event start value must be between ${this.min} and ${this.max}`);
+		}
+		this._start = value;
 	}
 
 	get start(){
