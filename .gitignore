@@ -141,3 +141,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Project-specific ignores
+components/midish/bin/
+components/midish/third_party/
+components/pure_data/install/
+components/pure_data/third_party/
+components/midi_connections/bin/
