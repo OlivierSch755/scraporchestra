@@ -161,9 +161,15 @@ class ProjectManager {
 			errs.push(err2);
 		}
 
-		switch(errs.length){
-			case 1 : throw errs[0];
-			case 2 : throw new AggregateError(errs)
+		if (errs.length === 1) {
+			throw errs[0];
+		}
+
+		if (errs.length > 1) {
+			throw new AggregateError(
+				errs,
+				`Failed to save project session: ${project.name}`
+			);
 		}
 		
 	}
