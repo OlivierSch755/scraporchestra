@@ -162,10 +162,9 @@ class Project {
 			this.state = RessourceState.ERROR;
 			throw err;
 		}
-		
-		// this.state = RessourceState.READY;
-		this.initialized = true;
-		
+		finally{
+			this.initialized = true;
+		}
 		
 	}
 	
