@@ -2,7 +2,6 @@ const path = require('node:path');
 const {spawn,exec} = require("node:child_process");
 const fs = require("node:fs/promises");
 
-const {ProjectState} = require("engine/project");
 const Dispatcher = require("engine/dispatcher");
 const {RessourceState} = require("engine/states");
 const {ComponentProcess} = require("engine/component/process");
@@ -232,7 +231,7 @@ class PureData extends ComponentProcess{
 			this.instance = null;
 			if( this.state === RessourceState.CLOSING ){
 				
-				if(this.project.state === ProjectState.CLOSING && this.editor_open ){
+				if(this.project.state === RessourceState.CLOSING && this.editor_open ){
 					this.editor_backend.close();
 					this.editor_backend = null; 
 					this.editor_open = false;
