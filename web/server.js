@@ -9,7 +9,6 @@ const project_controller = require( "./controllers/project.js" );
 const components_controller = require( "./controllers/components.js" );
 const front_libs_controller = require( "./controllers/front_libs.js" );
 
-let webserver_running = false;
 
 const options_template = {
 	log_requests : false,
@@ -20,8 +19,6 @@ const options_template = {
 
 
 function startWebAppServer( application, options = options_template ){
-	
-	if(webserver_running) return Promise.resolve();
 	
 	return new Promise( async ( resolve, reject )=>{
 		
@@ -86,7 +83,6 @@ function startWebAppServer( application, options = options_template ){
 		});	
 		
 		server.listen(3000, async() => {
-			webserver_running = true;
 			return resolve();
 		});
 		
