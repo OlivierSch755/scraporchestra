@@ -13,19 +13,25 @@ const front_libs_controller = require( "./controllers/front_libs.js" );
 const options_template = {
 	log_requests : false,
 	log_ws_connections : false,
-	log_app_errors : true
+	log_app_errors : true,
+	port : 3000
 }
 
 
 
-function startWebAppServer( application, options = options_template ){
+async function startWebAppServer( application, options = options_template ){
 	
-	return new Promise( async ( resolve, reject )=>{
-		
-		const app = express();
-		const server = createServer(app);
-		const wss = new WebSocketServer({ server });
-		
+	options = {
+		...options_template,
+		...options,
+	};
+
+
+	const app = express();
+	const server = createServer(app);
+	const wss = new WebSocketServer({ server });
+	
+	try{
 		wss.on('connection', function connection(ws, req) {
 			const url = new URL(req.url, "ws://base.url");
 			const { pathname } = url;
@@ -56,15 +62,16 @@ function startWebAppServer( application, options = options_template ){
 		
 		app.use( '/projects', project_controller( application, wss ) );
 		app.use( '/engine', engine_controller( application, wss ) );
-	
+
 		// this one does directory listing, hence await
 		const components_ctrler = await components_controller( application, wss );
 		app.use( '/components', components_ctrler );
-	
+
 		app.use( '/js/lib', front_libs_controller() );
 		
 		app.use( express.static(__dirname + '/public') );		
 		
+		// simple express error handler
 		app.use((err, req, res, next) => {
 			
 			if(err instanceof Error ){
@@ -81,12 +88,28 @@ function startWebAppServer( application, options = options_template ){
 			 res.status(500);
 			 res.send(err.message)
 		});	
-		
-		server.listen(3000, async() => {
-			return resolve();
+
+		await new Promise((resolve, reject) => {
+			server.once("error", reject);
+			server.listen(options.port, resolve);
 		});
+
+		return { app, server, wss };
 		
-	})
+	}
+	catch (err) {
+		for (const client of wss.clients) {
+			client.terminate();
+		}
+
+		wss.close();
+
+		if (server.listening) {
+			server.close();
+		}
+
+		throw err;
+	}
 }
 
 
