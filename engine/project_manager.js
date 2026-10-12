@@ -5,8 +5,7 @@ const { EventEmitter, once } = require('node:events');
 const { Project }= require("./project.js")
 const Dispatcher = require("./dispatcher.js")
 
-class ProjectManagerError extends Error{};
-
+class ProjectManagerError { constructor(message){ this.message = message } }
 class ProjectNotFoundError extends ProjectManagerError {};
 
 class ProjectManager {
@@ -51,8 +50,8 @@ class ProjectManager {
 			)
 		}
 		catch(err){
-			if(err.code === 'EEXIST') throw new Error("A project already exists with this name");
-			const err2 = new Error("Unexpected error while creating project " + name);
+			if(err.code === 'EEXIST') throw new ProjectManagerError("A project already exists with this name");
+			const err2 = new ProjectManagerError("Unexpected error while creating project " + name);
 			err2.cause = err;
 			throw err2;
 		}

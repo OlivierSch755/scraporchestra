@@ -20,5 +20,8 @@
   },
   "exports": {
     ".": "./package.json"
+  },
+  "devDependencies": {
+    "supertest": "^7.3.1"
   }
 }

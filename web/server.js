@@ -9,7 +9,6 @@ const project_controller = require( "./controllers/project.js" );
 const components_controller = require( "./controllers/components.js" );
 const front_libs_controller = require( "./controllers/front_libs.js" );
 
-
 const options_template = {
 	log_requests : false,
 	log_ws_connections : false,
@@ -17,15 +16,12 @@ const options_template = {
 	port : 3000
 }
 
-
-
 async function startWebAppServer( application, options = options_template ){
 	
 	options = {
 		...options_template,
 		...options,
 	};
-
 
 	const app = express();
 	const server = createServer(app);
@@ -94,7 +90,31 @@ async function startWebAppServer( application, options = options_template ){
 			server.listen(options.port, resolve);
 		});
 
-		return { app, server, wss };
+		const close = async function() {
+			// Close connected WebSocket clients first.
+			for (const client of wss.clients) {
+				client.terminate();
+			}
+
+			// Stop accepting WebSocket connections.
+			await new Promise((resolve, reject) => {
+				wss.close(err => err ? reject(err) : resolve());
+			});
+
+			// Close the HTTP server.
+			if (server.listening) {
+				await new Promise((resolve, reject) => {
+					server.close(err => err ? reject(err) : resolve());
+				});
+			}
+		  }
+
+		return { 
+			app, 
+			server, 
+			wss, 
+			close
+		};
 		
 	}
 	catch (err) {

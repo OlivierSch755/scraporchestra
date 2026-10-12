@@ -142,8 +142,6 @@ class Project {
 			return;
 		}
 		
-		
-		
 	}
 	
 	async initialize(){
@@ -157,6 +155,13 @@ class Project {
 		try{
 			this.loadComponents();
 			await this.initializeComponents();
+			
+			// flag project as ready if there are no components to load
+			if(Object.values( this.components ).length === 0){
+				this.state = RessourceState.READY;
+				return;
+			}
+			
 		}
 		catch(err){
 			this.state = RessourceState.ERROR;
