@@ -81,7 +81,7 @@ class Sushi extends ComponentProcess{
 			await fs.unlink( session_path );
 		} 
 		catch(err){
-			
+			// do something here
 		}
 		
 		return true;

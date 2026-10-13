@@ -9,9 +9,11 @@ const request = require("supertest");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 
+const {RessourceState} = require("engine/states");
+const {createTestApp} = require("./helpers/create-test-app");
 const Sushi = require("components/sushi");
 
-// Do a small override on the Sushi class so default config will use dummy driver instead of RASPA
+// Do a small override on the Sushi class so default config will use DUMMY driver instead of RASPA
 ;(()=>{
 	const original_get_default_config_method = Sushi.get_default_config;
 	Sushi.get_default_config = function(){
@@ -21,23 +23,11 @@ const Sushi = require("components/sushi");
 	}
 })();
 
-const {RessourceState} = require("engine/states");
-
-
-const {
-	createTestApp
-} = require("./helpers/create-test-app");
-
 const projectName = "test_project_sushi";
-
-
-
-
 
 describe("Sushi component API", { concurrency: false }, () => {
 	let ctx;
 	let loaded_project;
-	
 	
 	// helpers
 	async function startSushiEditor() {
@@ -47,7 +37,7 @@ describe("Sushi component API", { concurrency: false }, () => {
 
 		const sushi = ctx.application.engine.project.components.sushi;
 		const editor = sushi.editor_backend;
-
+		
 		assert.ok(
 			editor.proxy.ok,
 			"Sushi gRPC Proxy should report readiness"
@@ -89,7 +79,68 @@ describe("Sushi component API", { concurrency: false }, () => {
 		);	
 	}	
 	
+	// helpers 
+	async function assertComponentInstallation(){
+
+		const sushi_component_instance = ctx.application.engine.project.components.sushi;
+		
+		// verify Sushi is installed in project	
+		assert.ok(
+			sushi_component_instance instanceof Sushi,
+			"Project should hold a Sushi instance after component installation"
+		);		
+		
+		assert.deepStrictEqual(
+			ctx.application.engine.project.config.components.sushi,
+			Sushi.get_default_config(),
+			"Sushi component should have written its default configuration in project config during installation"
+		);
+
+		// verify Sushi is running
+		assert.equal(
+			sushi_component_instance.state,
+			RessourceState.READY,
+			"Sushi component should be in ready state after installation request completed"
+		);		
+		
+		
+		// verify config file has been written to project dir
+		const expected_sushi_config_file_path = path.join(
+			ctx.application.projectManager.getProjectPath(projectName),
+			"sushi_config.json"
+		)
+		
+		const stat = await fs.stat( expected_sushi_config_file_path );
+		assert.ok(stat.isFile());
+		
+	}
 	
+	// helpers 
+	async function assertComponentUninstallation(){
+		// verify Sushi is no longer installed in project	
+		assert.equal(
+			ctx.application.engine.project.components.sushi,
+			undefined,
+			"No Sushi component instance should be left in engine after removing component from project"
+		);		
+		assert.equal(
+			ctx.application.engine.project.config.components.sushi,
+			undefined,
+			"Project config should no longer have any Sushi setting after removing component from project"
+		);
+		
+		const expected_sushi_config_file_path = path.join(
+			ctx.application.projectManager.getProjectPath(projectName),
+			"sushi_config.json"
+		)
+		
+		await assert.rejects(
+			fs.stat(expected_sushi_config_file_path),
+			{ code: "ENOENT" }
+		);
+		
+		
+	}
 	
 	before(async () => {
 		ctx = await createTestApp();
@@ -119,37 +170,39 @@ describe("Sushi component API", { concurrency: false }, () => {
 		
 	});
 	
-	it("installs Sushi in project", async () => {
+	it("tests component installation", async () => {
 		await request(ctx.webServer.server)
 			.post(`/projects/api/add_components/${projectName}`)
 			.send(["sushi"])
 			.set('Content-Type', 'application/json')
 			.expect(200);
-			
-		const sushi_component_instance = ctx.application.engine.project.components.sushi;
-		
-		// verify Sushi is installed in project	
-		assert.ok(
-			sushi_component_instance instanceof Sushi,
-			"Project should hold a Sushi instance after component installation"
-		);		
-		
-		assert.deepStrictEqual(
-			ctx.application.engine.project.config.components.sushi,
-			Sushi.get_default_config(),
-			"Sushi component should have written its default configuration in project config during installation"
-		);
-
-		// verify Sushi is running
-		assert.equal(
-			sushi_component_instance.state,
-			RessourceState.READY,
-			"Sushi component should be in ready state after installation request completed"
-		);		
-		
+		await assertComponentInstallation();	
+	});
+	
+	it("tests protection against multiple installation", async () => {
+		await request(ctx.webServer.server)
+			.post(`/projects/api/add_components/${projectName}`)
+			.send(["sushi"])
+			.set('Content-Type', 'application/json')
+			.expect(409);
+	});
+	
+	it("tests component uninstallation", async () => {
+		await request(ctx.webServer.server)
+			.post(`/projects/api/delete_component/${projectName}/sushi`)
+			.expect(200);
+		await assertComponentUninstallation();
 	});
 	
 	it("starts and closes Sushi editor", async () => {
+		
+		await request(ctx.webServer.server)
+			.post(`/projects/api/add_components/${projectName}`)
+			.send(["sushi"])
+			.set('Content-Type', 'application/json')
+			.expect(200);
+		await assertComponentInstallation();	
+		
 		const { editor } = await startSushiEditor();
 		await request(ctx.webServer.server)
 			.post(`/components/sushi/api/editor/stop`)
@@ -163,6 +216,8 @@ describe("Sushi component API", { concurrency: false }, () => {
 		await request(ctx.webServer.server)
 			.post(`/projects/api/delete_component/${projectName}/sushi`)
 			.expect(200);
+			
+		await assertComponentUninstallation();
 		await assertEditorClosed(editor);
 	});
 	
