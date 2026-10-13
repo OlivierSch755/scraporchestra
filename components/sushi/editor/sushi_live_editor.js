@@ -50,7 +50,6 @@ function startSushiWebEditorBackend( proto, wss ){
 	})
 
 	function close(){
-		console.log("closing sushi editor")
 		cleanUp.forEach( task => task() );
 	}
 

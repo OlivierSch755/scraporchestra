@@ -218,7 +218,7 @@ class Sushi extends ComponentProcess{
 			this.restored_session = true;
 			
 		} else {
-			console.log("No Sushi session restored")
+			this.restored_session = false;
 		}
 	}
 	
@@ -303,7 +303,6 @@ class Sushi extends ComponentProcess{
 		/*
 			probably needs more error handling here 
 		*/
-		
 		
 	}
 	
