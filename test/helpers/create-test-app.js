@@ -37,13 +37,18 @@ async function createTestApp() {
 					webServer = null;
 				}
 
-				// Close application-owned resources here,
-				// using your actual application shutdown API.
-
-				await fs.rm(root, {
-					recursive: true,
-					force: true
-				});
+				try{
+					await application.engine.close_project();
+				}
+				catch(err){
+					if(application.engine.degraded) throw new Error("Could not clean up system properly");
+				}
+				finally{
+					await fs.rm(root, {
+						recursive: true,
+						force: true
+					});
+				}
 			},
 		};
 	}

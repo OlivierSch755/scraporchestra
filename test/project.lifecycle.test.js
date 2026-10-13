@@ -19,7 +19,7 @@ const {
 const projectName = "test_project";
 
 
-describe("Project lifecycle API", () => {
+describe("Project lifecycle API", { concurrency: false },  () => {
 	let ctx;
 	let loaded_project;
 	
