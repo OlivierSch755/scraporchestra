@@ -136,6 +136,8 @@ class SushiEditorApi{
 	async requestAddProcessorOnTrack(plugin,track,before_processor){
 		
 		
+		console.log(plugin)
+		
 		this.requestInProgress = true;
 		
 		const req = sushiStub.CreateProcessorRequest.create();
@@ -147,12 +149,16 @@ class SushiEditorApi{
 			req.position  = {add_to_back : true}
 		}
 		
-		const type = sushiStub.PluginType.Type[plugin.type];
 		Object.assign(req, plugin)
-		req.track = track;
-		req.type = {type};
 		
-		console.log(req)
+		// cached list (show list helper) uses string, and selector uses id, this is a ugly workaround 
+		if(!req.type.type){	
+			const type = sushiStub.PluginType.Type[plugin.type];
+			req.type = {type};
+		}
+
+		req.track = track;
+		
 		
 		const err = sushiStub.CreateProcessorRequest.verify(req);
 		if(err) return AppStatus.error("Invalid plugin request");
