@@ -115,7 +115,7 @@ describe("Component API lifecycle", { concurrency: false }, () => {
 	
 });
 
-describe("Component API: no project error handling", { concurrency: false }, () => {
+describe("Component API no project", { concurrency: false }, () => {
 	let ctx;
 	
 	before(async () => {
@@ -142,6 +142,13 @@ describe("Component API: no project error handling", { concurrency: false }, () 
 	
 });
 
+describe("Component API missing installation", { concurrency: false, todo: true },  () => {
+	
+	it("Rejects loading a project when one of its components installation file(s) have been removed", {todo: true}, async () => {
+
+	});
+	
+})
 describe("Handling Component not being properly terminated", { concurrency: false, todo: true },  () => {
 	
 	it("Notifies engine degraded after error detection", {todo: true}, async () => {
