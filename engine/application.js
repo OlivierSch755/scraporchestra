@@ -5,6 +5,7 @@ const ComponentUtils = require ("engine/component/utils");
 const path = require ("node:path");
 const fs = require ("node:fs/promises");
 
+
 class Application {
 	
 	engine;
@@ -44,7 +45,6 @@ class Application {
 		await this.write_config();
 	}
 	
-	
 	async init(){
 		
 		await this.init_project_dir();
@@ -61,7 +61,6 @@ class Application {
 			}
 		}
 		
-		this.components = await this.getAllComponents();
 		return this;
 	}
 	
@@ -102,7 +101,6 @@ class Application {
 		await fs.writeFile(this.config_path, JSON.stringify(this.config, null, "\t") );
 	}
 	
-	
 	// todo / routine to validate config.json
 	validate_config(config){
 		return true;
@@ -113,89 +111,9 @@ class Application {
 		await fs.mkdir(this.projects_dir, { recursive: true });
 	}
 	
-	// returns the class definition of all components
-	async getAllComponents(){
-		return await ComponentUtils.getAllComponents();
-	}
-	
 	// returns the instance of a component that is running inside a live project
 	getComponentInstanceByName(name){
 		return ComponentUtils.getEngineLoadedComponent( this.engine, name );
-	}
-	
-	
-	// add component default config to project config
-	// run component install method into project dir
-	
-	// All those project function need a guard against user spamming buttons
-	// Should also be a part of project manager rather than application...
-	
-	async addComponentsToProject( project_name, components_names ){
-		
-		const project = await this.projectManager.getProject( project_name );
-		
-		if( ! project ){
-			throw { message : "Project not found : ", project_name };
-		}
-		
-		const known_components = await ComponentUtils.getAllComponents();
-		
-		let sanitized = {};
-		components_names.forEach( component_name => {
-			
-			const component_class = known_components[component_name];
-			
-			if( ! component_class ) return; // we don't know about this component
-			if( project.config.components[component_name] ) return; // component is already in project
-			
-			sanitized[component_name] = component_class;
-			
-		});
-		
-		await ComponentUtils.installComponentsInProject( project, sanitized );
-		await this.projectManager.saveProjectConfig(project.name, project.config);
-		
-		if(this.engine.project.name === project_name){
-			await Promise.allSettled (
-				Object.entries( sanitized ).map( ([component_name,  component_class]) => {
-					const default_config = component_class.get_default_config();
-					this.engine.project.config.components[component_name] = default_config;
-					const component = new component_class( default_config , this.engine.project );
-					component.name = component_name;
-					this.engine.project.components[component_name] = component;
-					return component.initialize();
-					
-				})
-			)
-		}
-		
-		
-		Dispatcher.emit("engine.snapshot", this.engine);
-	}
-
-	async removeComponentFromProject(project_name, component_name){
-		const project = await this.projectManager.getProject( project_name );
-		if( ! project ){
-			throw { message : "Project not found : ", project_name };
-		}
-		
-		const component = this.components[component_name];
-		
-		await component.uninstallProject(project);
-		delete this.engine.project.config.components[component_name];
-		
-		const running_instance =  this.getComponentInstanceByName(component_name) ;
-		
-		
-		if( running_instance ){
-			await running_instance.close();
-			delete this.engine.project.components[component_name];
-		}
-		
-		await this.projectManager.saveProjectConfig(project.name, this.engine.project.config);
-		
-		Dispatcher.emit("engine.snapshot", this.engine);
-		
 	}
 
 }

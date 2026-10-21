@@ -139,10 +139,10 @@ Alpine.store('project_manager', {
 		this.requestInProgress = false;;
 	},
 	
-	async requestAddComponents(project,components){
+	async requestAddComponents(components){
 		this.requestInProgress = true;
 		try{
-			const req = await fetch('/projects/api/add_components/'+ project.name, {method:'post', headers: {"Content-Type": "application/json"}, body: JSON.stringify(components) });		
+			const req = await fetch('/projects/api/add_components', {method:'post', headers: {"Content-Type": "application/json"}, body: JSON.stringify(components) });		
 			if(req.ok){
 				AppStatus.success("Added Component(s)");
 			}
@@ -165,7 +165,7 @@ Alpine.store('project_manager', {
 		
 		this.requestInProgress = true;
 		try{
-			const req = await fetch('/projects/api/delete_component/'+ project.name + "/" + component.name, {method:'post'});	
+			const req = await fetch('/projects/api/delete_component/' + component.name, {method:'post'});	
 			if(req.ok){
 				AppStatus.success("Removed Component");
 			}

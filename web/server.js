@@ -9,10 +9,13 @@ const project_controller = require( "./controllers/project.js" );
 const components_controller = require( "./controllers/components.js" );
 const front_libs_controller = require( "./controllers/front_libs.js" );
 
+const {ScrapOrchestraError} = require("../lib/errors.js");
+
 const options_template = {
 	log_requests : false,
 	log_ws_connections : false,
 	log_app_errors : true,
+	log_unexpected_errors : true,
 	port : 3000
 }
 
@@ -67,24 +70,61 @@ async function startWebAppServer( application, options = options_template ){
 		
 		app.use( express.static(__dirname + '/public') );		
 		
-		// simple express error handler
+
+		// Express error handler
 		app.use((err, req, res, next) => {
-			
-			if(err instanceof Error ){
-				console.error(err);
-			} else if( options.log_app_errors ){
-				console.log("APP ERROR");
-				console.dir(err,  {depth:null});
-			}
-			
-			if(res.headerSent){
+			if (res.headersSent) {
 				return next(err);
 			}
-			
-			 res.status(500);
-			 res.send(err.message)
-		});	
 
+			let status = 500;
+			let message = "Internal server error";
+
+			if (err instanceof ScrapOrchestraError) {
+				if (options.log_app_errors) {
+					console.error("Application error:");
+					console.dir(err, { depth: null });
+				}
+
+				message = err.message;
+
+				switch (err.code) {
+					case "INVALID_ARGUMENT":
+						status = 400;
+						break;
+
+					case "ALREADY_EXISTS":
+					case "BUSY":
+					case "NOT_INITIALIZED":
+						status = 409;
+						break;
+
+					case "NOT_FOUND":
+						status = 404;
+						break;
+
+					case "FAILED":
+						status = 500;
+						break;
+
+					default:
+						// Unknown application code
+						status = 500;
+						message = "Internal server error";
+						break;
+				}
+			} else {
+				// Unexpected programming or infrastructure error
+				if (options.log_unexpected_errors) {
+					console.error("Unexpected error:");
+					console.dir(err, { depth: null });
+				}
+			}
+
+			res.status(status).send(message);
+		});
+		
+		
 		await new Promise((resolve, reject) => {
 			server.once("error", reject);
 			server.listen(options.port, resolve);

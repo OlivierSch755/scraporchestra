@@ -1,30 +1,33 @@
 const path  = require('node:path');
 const fs = require('node:fs/promises');
+const os = require("node:os");
 
-const {Component}= require("./component/component.js");
-const {lookupComponent}= require("./component/utils.js");
+const {Component} = require("./component/component.js");
+const {lookupComponent} = require("./component/utils.js");
+const ComponentErrors = require("./component/errors.js");
+
 const {RessourceState,validateState} = require("./states.js");
+const {ScrapOrchestraError} = require("../lib/errors.js");
+
 const Dispatcher = require("./dispatcher.js");
 
-class ProjectError {
-	constructor(message){
-		this.message = message;
-	}
-};
+class CorruptedProjectConfigError extends ScrapOrchestraError {
+    constructor(message, options) {
+        super("OPERATION_FAILED", message, options);
+    }
+}
 
-class InvalidProjectError extends ProjectError{};
+class ProjectNotOpenedError extends ScrapOrchestraError {
+    constructor(message, options) {
+        super("NOT_INITIALIZED", message, options);
+    }
+}
 
-class ProjectNotOpenedError extends ProjectError{};
-
-class ProjectNotOpenableError extends ProjectError{};
-
-class ProjectCloseError extends ProjectError{};
-
-class ComponentLoadError extends ProjectError{};
-
-class ComponentInitError extends ProjectError{};
-
-
+class CannotInitializeProjectNowError extends ScrapOrchestraError {
+    constructor(message = "Project is not in a state that allows initialization", options) {
+        super("BUSY", message, options);
+    }
+}
 
 
 class Project {
@@ -58,25 +61,27 @@ class Project {
 	
 	constructor( abs_path_to_project_dir){
 		this.name = path.basename( abs_path_to_project_dir );
-		this.dir = abs_path_to_project_dir;  // used by components to load their own data
+		this.save_dir = abs_path_to_project_dir; // real path to saved data
+		this.dir // used by components to load their own data (temporary directory)
 		this.initialized = false;
 		this.components = {};
-		this.componentRuntimeStateChangeHandler = this.componentRuntimeStateChangeHandler.bind(this);
+		this.componentRuntimeStateChangeHandler = this.componentRuntimeStateChangeHandler.bind(this); // cb for component state change
 	}
 	
 	
 	async loadConfig() {
-		this.config_path = path.join(this.dir, "project.json");
+		this.config_path = path.join(this.save_dir, "project.json");
 
 		try {
 			const text = await fs.readFile(this.config_path, "utf8");
 			this.config = JSON.parse(text);
-		} catch (err) {
-			const err2 = new InvalidProjectError(
-				`Failed to load ${this.config_path}`
+			// needs validation here
+		} 
+		catch (err) {
+			throw new CorruptedProjectConfigError(
+				`Project ${this.name} configuration file is corrupted`, 
+				{ cause : err }
 			);
-			err2.cause = err;
-			throw err2;
 		}
 
 		return this;
@@ -84,40 +89,31 @@ class Project {
 	
 	loadComponents(){
 		this.components = {};
-		Object.entries( this.config.components ).map( ( [component_name, component_config] )=>{
+		Object.entries( this.config.components ).forEach( ( [component_name, component_config] )=>{
+			// get component class definition (will throw if not found or invalid)
+			let component_class = lookupComponent(component_name);
+			// instantiate it
+			let component = new component_class( component_config, this );
+			component.name = component_name;
 			
-			let component;
-			try{
-				// get component class definition
-				let component_class = lookupComponent(component_name);
-				// instantiate it
-				component = new component_class( component_config, this );
-				component.name = component_name;
-				
-				
-			} catch(err){
-				const err2 = new ComponentLoadError(`Failed to load component ${component_name}`);
-				err2.cause = err;
-				throw err2;
-			}
 			this.components[component_name] = component;
 			
 		});
-		
-		
 	}
 	
 	initializeComponents() {
 		return Promise.allSettled(
-			Object.values( this.components ).map(component =>
-				component.initialize().catch(err => {
-					
-					const err2 = new ComponentInitError(
-						`Failed to initialize component ${component.name}`
+			Object.values( this.components ).map( async component => {
+				try{
+					await component.initialize()
+				}
+				catch(err){
+					throw new ComponentInitError(
+						`Failed to initialize component ${component.name}`,
+						{ cause : err}
 					);
-					err2.cause = err;
-					throw err2;
-				})
+				}
+			}
 			)
 		);
 	}
@@ -145,14 +141,27 @@ class Project {
 	}
 	
 	async initialize(){
-		
 		if(  this.state !== RessourceState.CLOSED ) {
-			throw new ProjectNotOpenableError("Project is not in a state that allows initialization");
+			throw new CannotInitializeProjectNowError();
 		}
 		
 		this.state = RessourceState.LOADING;
+		
+		// create a temporary directory to hold runtime modification to project
+		this.dir = await fs.mkdtemp(
+			path.join(os.tmpdir(), "scraporchestra-project-"+this.name+ "-")
+		);
+		
+		// clone project dir in temporary directory
+		await fs.cp(this.save_dir, this.dir, {recursive: true});
+		
+			
+		// Listen to components state change
 		Dispatcher.on("component.state", this.componentRuntimeStateChangeHandler);
+		
+		// Load & initialize components
 		try{
+
 			this.loadComponents();
 			await this.initializeComponents();
 			
@@ -170,7 +179,6 @@ class Project {
 		finally{
 			this.initialized = true;
 		}
-		
 	}
 	
 	async close(){
@@ -179,22 +187,116 @@ class Project {
 		}
 		this.state = RessourceState.CLOSING;
 		
+		await fs.rm(this.dir, {
+			recursive: true,
+			force: true
+		});
+
 		Dispatcher.off("component.state", this.componentRuntimeStateChangeHandler);
 		
-		await Promise.all(
-			Object.values(this.components).map(component =>
-				component.close().catch(err => {
-					const err2 = new ProjectCloseError(
-						`Failed to close project`
-					);
-					err2.cause = err;
-					throw err2;
-				})
-			)
+		const component_close_result = await Promise.allSettled(
+			Object.values(this.components).map( ( component ) => component.close() )
 		);
+		
+		
+		
 		this.components = {};
 		this.state = RessourceState.CLOSED;
 	}
+	
+	
+	// add a component to a (initialized) project  
+	async addComponent(component_name){
+		
+		if( this.initialized === false ) {
+			throw new ProjectNotOpenedError("Cannot add component to a project that has not been initialized");
+		}
+		
+		// component is already installed in project
+		if( this.config.components[component_name] ) {
+			throw new ComponentErrors.ComponentAlreadyInstalledError(`Component ${component_name} is already installed in this project` ); 
+		}
+		
+		let component_class;
+		try{
+			component_class = lookupComponent(component_name);
+		}
+		catch(err){
+			throw new ComponentErrors.ComponentNotFoundError(`Component ${component_name} not found` ); 
+		}
+		
+		
+		let component_instance;
+		let default_config;
+		
+		// Component should at least produce a default config and be able to instantiate, abort early if not
+		try{
+			default_config = component_class.get_default_config();
+			component_instance = new component_class(default_config, this);
+			component_instance.name = component_name;
+		}
+		catch(err){
+			throw new ComponentErrors.ComponentInvalidError(`Component ${component_name} is invalid` ); 
+		}
+		
+		// run component installation routine on this project directory
+		try{
+			await component_class.installProject(this);
+		}
+		catch(err){
+			try{
+				await component_class.uninstallProject(this);
+			}
+			finally{
+				throw new ComponentErrors.ComponentInstallationError(`Component ${component_name} could not be installed in project` );
+			}
+		}
+		
+		this.components[component_name] = component_instance;
+		this.config.components[component_name] = default_config;
+		
+		try{
+			await component_instance.initialize();
+		}
+		catch(err){
+			let component = this.components[component_name];
+			if(component){
+				component.state = RessourceState.ERROR;
+			}
+			throw err;
+		}
+	}
+	
+	// add multiple components to a (initialized) project
+	async addComponents(list_of_components_name){
+		for(let component_name of list_of_components_name){
+			await this.addComponent(component_name);
+		}
+	}
+	
+	
+	async removeComponent(component_name){
+		if( this.initialized === false ) {
+			throw new ProjectNotOpenedError("Cannot remove component from a project that has not been initialized");
+		}
+		// component is not installed in project
+		if( !this.config.components[component_name] ) {
+			throw new ComponentErrors.ComponentNotFoundError(`Component ${component_name} is not installed in this project` ); 
+		}
+		
+		let component_class = lookupComponent(component_name);
+		await component_class.uninstallProject(this);
+		
+		const component_instance = this.components[component_name];
+		delete this.config.components[component_name];
+		delete this.components[component_name];
+	
+		// should throw ComponentNotProperlyClosedError if failed
+		// and engine must take appropriate action
+		await component_instance.close();
+	}
+	
+	
 	
 	toJSON(){
 		const {name, state, config, components} = this;

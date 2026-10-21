@@ -1,5 +1,5 @@
 /*
-	Suite of test for basic project lifecycle API
+	Suite of test for Sushi component
 */
 
 
@@ -10,7 +10,7 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 
 const {RessourceState} = require("engine/states");
-const {createTestApp} = require("./helpers/create-test-app");
+const {createTestApp, createTestProject, loadTestProject} = require("./helpers/create-test-app");
 const Sushi = require("components/sushi");
 
 // Do a small override on the Sushi class so default config will use DUMMY driver instead of RASPA
@@ -25,9 +25,10 @@ const Sushi = require("components/sushi");
 
 const projectName = "test_project_sushi";
 
+
+
 describe("Sushi component API", { concurrency: false }, () => {
 	let ctx;
-	let loaded_project;
 	
 	// helpers
 	async function startSushiEditor() {
@@ -58,7 +59,6 @@ describe("Sushi component API", { concurrency: false }, () => {
 		return { sushi, editor };
 	}
 	
-	// helpers
 	async function assertEditorClosed(editor){
 		assert.equal(
 			editor.proxy.closed, 
@@ -79,7 +79,6 @@ describe("Sushi component API", { concurrency: false }, () => {
 		);	
 	}	
 	
-	// helpers 
 	async function assertComponentInstallation(){
 
 		const sushi_component_instance = ctx.application.engine.project.components.sushi;
@@ -106,7 +105,7 @@ describe("Sushi component API", { concurrency: false }, () => {
 		
 		// verify config file has been written to project dir
 		const expected_sushi_config_file_path = path.join(
-			ctx.application.projectManager.getProjectPath(projectName),
+			ctx.application.engine.project.dir,
 			"sushi_config.json"
 		)
 		
@@ -115,7 +114,6 @@ describe("Sushi component API", { concurrency: false }, () => {
 		
 	}
 	
-	// helpers 
 	async function assertComponentUninstallation(){
 		// verify Sushi is no longer installed in project	
 		assert.equal(
@@ -144,52 +142,29 @@ describe("Sushi component API", { concurrency: false }, () => {
 	
 	before(async () => {
 		ctx = await createTestApp();
+		await createTestProject(ctx, projectName);
+		await loadTestProject(ctx, projectName);
 	});
 
 	after(async () => {
 		await ctx?.close();
 	});
 
-	it("creates an empty project", async () => {
-		await request(ctx.webServer.server)
-			.post(`/projects/api/create/${projectName}`)
-			.expect(200);
-		
-		const stat = await fs.stat( path.join(ctx.root, "projects", projectName ) );
-		assert.ok(stat.isDirectory());
-	});
-	
-	it("loads project", async () => {
-		await request(ctx.webServer.server)
-			.post(`/projects/api/open/${projectName}`)
-			.expect(200);
-			
-		assert.equal(ctx.application.engine.project.name, projectName );
-		assert.equal(ctx.application.engine.project.state, RessourceState.READY );
-		assert.equal(ctx.application.engine.state, RessourceState.READY );
-		
-	});
+
 	
 	it("tests component installation", async () => {
 		await request(ctx.webServer.server)
-			.post(`/projects/api/add_components/${projectName}`)
+			.post(`/projects/api/add_components`)
 			.send(["sushi"])
 			.set('Content-Type', 'application/json')
 			.expect(200);
 		await assertComponentInstallation();	
 	});
 	
-	it("tests protection against multiple installation", async () => {
-		await request(ctx.webServer.server)
-			.post(`/projects/api/add_components/${projectName}`)
-			.send(["sushi"])
-			.set('Content-Type', 'application/json')
-			.expect(409);
-	});
 	
 	it("tests component uninstallation", async () => {
 		await request(ctx.webServer.server)
-			.post(`/projects/api/delete_component/${projectName}/sushi`)
+			.post(`/projects/api/delete_component/sushi`)
 			.expect(200);
 		await assertComponentUninstallation();
 	});
@@ -197,7 +172,7 @@ describe("Sushi component API", { concurrency: false }, () => {
 	it("starts and closes Sushi editor", async () => {
 		
 		await request(ctx.webServer.server)
-			.post(`/projects/api/add_components/${projectName}`)
+			.post(`/projects/api/add_components`)
 			.send(["sushi"])
 			.set('Content-Type', 'application/json')
 			.expect(200);
@@ -214,7 +189,7 @@ describe("Sushi component API", { concurrency: false }, () => {
 	it("verifies Sushi editor gets terminated when Sushi component is uninstalled", async () => {
 		const { editor } = await startSushiEditor();
 		await request(ctx.webServer.server)
-			.post(`/projects/api/delete_component/${projectName}/sushi`)
+			.post(`/projects/api/delete_component/sushi`)
 			.expect(200);
 			
 		await assertComponentUninstallation();

@@ -10,7 +10,7 @@
     "./*": "./*/*.js",
     "./*/web/controller": "./*/web/controller.js"
   },
-  "main": "generate_cache.js",
+  "main": "package.json",
   "scripts": {
     "cache": "node ./generate_cache.js"
   }

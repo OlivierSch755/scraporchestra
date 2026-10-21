@@ -1,20 +1,19 @@
-const util = require('node:util');
-const path = require('node:path');
 const {Project} = require("./project.js")
+const {ScrapOrchestraError} = require("../lib/errors.js");
 const {RessourceState, validateState} = require("./states.js");
 const Dispatcher = require("./dispatcher.js")
 
-class EngineError {
-	constructor(message){
-		this.message = message;
-	}
-};
+class EngineBusyError extends ScrapOrchestraError {
+    constructor(message = "Engine is busy") {
+        super("BUSY", message);
+    }
+}
 
-class EngineDegradedError extends EngineError {};
-
-class EngineBusyError extends EngineError {};
-
-class ProjectLoadFailure extends EngineError {};
+class ProjectLoadFailure extends ScrapOrchestraError {
+    constructor(message, options) {
+        super("FAILED", message, options);
+    }
+}
 
 class Engine {
 	
@@ -31,18 +30,24 @@ class Engine {
 		this._state = state;
 	}
 	
+	constructor(){
+		this.state = RessourceState.CLOSED;
+	}
+	
+	verifyLoadedProject(){
+		if( ! this.project || this.state === RessourceState.CLOSED ) throw new EngineBusyError("No loaded project.");
+	}
+	
+	verifyNotBusy(){
+		if( this.state === RessourceState.LOADING ) throw new EngineBusyError();
+	}
+	
 	async open_project( abs_path_to_project_dir ){
-		
+		this.verifyNotBusy();
 		if( this.project ) throw new EngineBusyError("Engine is already running a project");
 		
-		if(  this.state === RessourceState.LOADING ) {
-			 throw new EngineBusyError("Engine is already loading a project");
-		}
-		
 		this.state = RessourceState.LOADING;
-		
 		let project;
-		
 		try{
 			project = new Project( abs_path_to_project_dir );
 			await project.loadConfig();
@@ -52,38 +57,38 @@ class Engine {
 		catch(err){
 			this.project = null;
 			this.state = RessourceState.CLOSED;
-			const err2 = new ProjectLoadFailure(`Engine failed to load project ${abs_path_to_project_dir}`);
-			err2.cause = err;
-			throw err2;
+			throw new ProjectLoadFailure(
+				`Engine failed to load project ${abs_path_to_project_dir}`,
+				{ cause: err }
+			);
 		}
 		
+		
+		
 		try{
+			// dispatch snapshot (what is being loaded)
 			Dispatcher.emit("engine.snapshot", this);
+			// initialize project
 			await project.initialize();
 			this.project = project;
-			this.state = RessourceState.READY;
-			Dispatcher.emit("engine.snapshot", this);
 		}
 		catch(err){
 			this.project = null;
-			this.state = RessourceState.READY;
-			Dispatcher.emit("engine.snapshot", this)
+			// propagate load error
 			throw err;
 		}
-		
-	
+		finally{
+			// set engine as ready to accept new cmd
+			this.state = RessourceState.READY;
+			Dispatcher.emit("engine.snapshot", this)
+		}
 	}
-	
+
 	async close_project(){
-		
+		this.verifyLoadedProject();
+		this.verifyNotBusy();
+		this.state = RessourceState.LOADING;
 		let project = this.project;
-		
-		if( ! this.project ) throw new EngineError("Engine has no project to close.");
-		if( this.state === RessourceState.CLOSED ) throw new EngineBusyError( "Engine is already closing." );
-		if( this.state === RessourceState.LOADING ) throw new EngineBusyError( "Engine is busy initializing a project, please wait for this task to complete." );
-		
-		
-		this.state = RessourceState.CLOSING;
 		this.project = null;
 		
 		try{
@@ -92,19 +97,46 @@ class Engine {
 			this.state = RessourceState.CLOSED;
 		}
 		catch(err){
-			this.state === RessourceState.ERROR
-			const err2 = new EngineDegradedError("Engine could not close project properly.");
-			err2.cause = err;
-			err2.project = project;
-			this.degraded = true;
-			this.degradedCallback(err2);
+			this.handleDegradation(err);
+			throw new EngineError("Engine could no close project properly, next project load may fail, reboot advised.");
 		}
 	}
 	
-	degradedCallback(degradedError){
-		const err = new Error("Engine is now degraded..., some ressources may not have been cleaned up properly. Next project start may fail. Reboot advised.");
-		err.cause = degradedError;
-		throw err;
+	async safeAddComponentsToProject(list_of_components_names){
+		this.verifyLoadedProject();
+		this.verifyNotBusy();
+		this.state = RessourceState.LOADING;
+		try{
+			await this.project.addComponents(list_of_components_names);
+		}
+		catch(err){
+			throw err;
+		}
+		finally{
+			this.state = RessourceState.READY;
+		}
+	}
+	
+	async safeRemoveComponentFromProject(component_name){
+		this.verifyLoadedProject();
+		this.verifyNotBusy();
+		this.state = RessourceState.LOADING;
+		try{
+			await this.project.removeComponent(component_name);
+		}
+		catch(err){
+			throw err;
+		}
+		finally{
+			this.state = RessourceState.READY;
+			Dispatcher.emit("engine.snapshot", this);
+		}
+	}
+	
+	handleDegradation(err){
+		this.degraded = true;
+		this.state = RessourceState.ERROR
+		
 	}
 	
 	toJSON(){

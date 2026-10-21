@@ -3,14 +3,11 @@ const fs = require('node:fs/promises');
 
 const { Component } = require("./component.js")
 const {RessourceState} = require("engine/states");
-const Dispatcher = require("../dispatcher.js");
 
 const {
 	ComponentError,
 	ComponentUnexpectedlyTerminatedError,
 	ComponentNotProperlyClosedError,
-	ComponentInvalidError,
-	ComponentNotFoundError
 } = require("engine/component/errors");
 
 

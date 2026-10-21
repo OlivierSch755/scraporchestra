@@ -1,22 +1,64 @@
 const path = require('node:path');
 const fs = require('node:fs/promises');
-const process = require('node:process');
-const { EventEmitter, once } = require('node:events');
 const { Project }= require("./project.js")
 const Dispatcher = require("./dispatcher.js")
+const {ScrapOrchestraError} = require("../lib/errors.js");
 
-class ProjectManagerError { constructor(message){ this.message = message } }
-class ProjectNotFoundError extends ProjectManagerError {};
+
+class ProjectAlreadyExistsError extends ScrapOrchestraError {
+    constructor(message = "A project already exists with this name") {
+        super("ALREADY_EXISTS", message);
+    }
+}
+
+class ProjectCreationFailureError extends ScrapOrchestraError {
+    constructor(message = "Could not create project", options) {
+        super("FAILED", message, options);
+    }
+}
+
+class ProjectManagerError extends ScrapOrchestraError {
+    constructor(message, options) {
+        super("FAILED", message, options);
+    }
+}
+
+class ProjectManagerNotInitializedError extends ScrapOrchestraError {
+    constructor(message, options) {
+        super("NOT_INITIALIZED", message, options);
+    }
+}
+
+class ProjectSessionSaveError extends ScrapOrchestraError {
+    constructor(message, options) {
+        super("FAILED", message, options);
+    }
+}
+
+class ProjectNotFoundError extends ScrapOrchestraError {
+    constructor(message = "Project not found", options) {
+        super("NOT_FOUND", message, options);
+    }
+}
+
+class InvalidProjectNameError extends ScrapOrchestraError {
+    constructor(message = "Invalid project name", options) {
+        super("INVALID_ARGUMENT", message, options);
+    }
+}
+
 
 class ProjectManager {
 	
     constructor(projects_dir) {
         this.projects = [];
 		this.projects_dir = projects_dir;
+		this.initialized = false;
     }
 
     async init() {
         this.projects = await this.scan();
+		this.initialized = true;
 		return this;
     }
 	
@@ -33,7 +75,7 @@ class ProjectManager {
 	}
 	
 	async createProject( name, optional_config = {} ){
-		
+	
 		this.validateProjectName(name); // check project name is valid (will throw if not)
 		
 		const abs_path_to_project_dir = this.getProjectPath(name);
@@ -50,11 +92,10 @@ class ProjectManager {
 			)
 		}
 		catch(err){
-			if(err.code === 'EEXIST') throw new ProjectManagerError("A project already exists with this name");
-			const err2 = new ProjectManagerError("Unexpected error while creating project " + name);
-			err2.cause = err;
-			throw err2;
+			if(err.code === 'EEXIST') throw new ProjectAlreadyExistsError();
+			throw new ProjectCreationFailureError("Unexpected error while creating project", { cause : err } );
 		}
+		
 		Dispatcher.emit("project_manager.new", name)
 		this.projects.push(name);
 	}
@@ -65,7 +106,7 @@ class ProjectManager {
 		// verify destination name does not collide with another project
 		const name_already_exists = await this.getProject(new_name, true);
 		if(name_already_exists){
-			throw new ProjectManagerError(`Another project already exists with this name : ${new_name}`);
+			throw new ProjectAlreadyExistsError(`Please rename previous project duplicate before making a new one : ${new_name}`);
 		}
 		const old_path = this.getProjectPath(name);
 		const new_path = this.getProjectPath(new_name);
@@ -79,6 +120,18 @@ class ProjectManager {
 	}
 	
 	async deleteProject(name){
+		
+		// do not blindly delete directories that have not been scanned before
+		if(!this.initialized){
+			throw new ProjectManagerNotInitializedError();
+		}
+		
+		// throws if input is not sane
+		this.validateProjectName(name);
+
+		if( !this.projects.includes(name) ){
+			throw new ProjectNotFoundError(`Project not found : ${name}`);
+		}
 		
 		const projectsRoot = path.resolve(this.projects_dir);
 		const projectDir = path.resolve(this.getProjectPath(name));
@@ -98,7 +151,7 @@ class ProjectManager {
 
 		try {
 			await fs.access(projectJson);
-		} catch {
+		} catch(err) {
 			throw new ProjectManagerError("Not a valid project directory");
 		}
 				
@@ -110,7 +163,6 @@ class ProjectManager {
 		delete require.cache[ path_to_config ];
 		
 		this.projects = this.projects.filter( p => p !== name)
-		
 		
 	}
 	
@@ -124,9 +176,10 @@ class ProjectManager {
 		}
 		catch(err){
 			if(do_not_throw) return null;
-			const err2 = new ProjectManagerError(`Project not found : ${name}`);
-			err2.cause = err;
-			throw err2;
+			throw new ProjectNotFoundError(
+				`Project not found : ${name}`,
+				{ cause : err }
+			);
 		}
 		return project;
 	}
@@ -135,43 +188,56 @@ class ProjectManager {
 		return path.join( this.projects_dir, name );
 	}
 	
-	async saveProjectSession( project ){
-		
+	async saveProjectSession(project) {
 		const errs = [];
-		
-		const component_save_result = await Promise.allSettled(
-			Object.values(project.components).map( c => c.saveProjectSession() )
+
+		const components = Object.entries(project.components);
+
+		const results = await Promise.allSettled(
+			components.map(async ([name, component]) => {
+				try {
+					await component.saveProjectSession();
+				} catch (cause) {
+					throw new ProjectManagerError(
+						`Could not save session for component: ${name}`,
+						{ cause }
+					);
+				}
+			})
 		);
 
-		for ( const result of component_save_result ) {
-			if ( result.status === "rejected" ) {
-				errs.push( new ProjectManagerError("Could not save component session", {
-					cause: result.reason
-				}));
+		for (const result of results) {
+			if (result.status === "rejected") {
+				errs.push(result.reason);
 			}
 		}
-
-		try{
+		
+		await fs.cp(project.dir, this.getProjectPath(project.name), {recursive: true});
+		
+		try {
 			await this.saveProjectConfig(project.name, project.config);
 		}
-		catch(err){
-			const err2 = new ProjectManagerError(`Could not save project config : ${project.name}`);
-			err2.cause = err;
-			errs.push(err2);
-		}
-
-		if (errs.length === 1) {
-			throw errs[0];
-		}
-
-		if (errs.length > 1) {
-			throw new AggregateError(
-				errs,
-				`Failed to save project session: ${project.name}`
+		catch (cause) {
+			errs.push(
+				new ProjectManagerError(
+					`Could not save project config: ${project.name}`,
+					{ cause }
+				)
 			);
-		}
-		
-	}
+    }
+
+    if (errs.length > 0) {
+        const aggregate = new AggregateError(
+            errs,
+            `Failed to save project session: ${project.name}`
+        );
+
+        throw new ProjectSessionSaveError(
+            `Could not save project session: ${project.name}`,
+            { cause: aggregate }
+        );
+    }
+}
 	
 	async saveProjectConfig( project_name, project_config ){
 		
@@ -188,9 +254,12 @@ class ProjectManager {
 		)
 	}
 	
-	validateProjectName(name){
-		if (!/^[A-Za-z0-9_-]+$/.test(name)) {
-			throw new ProjectManagerError("Invalid project name");
+	validateProjectName(name) {
+		if (
+				typeof name !== "string" 
+			||	!/^[A-Za-z0-9_-]+$/.test(name)
+		) {
+			throw new InvalidProjectNameError();
 		}
 	}
 }
@@ -198,5 +267,6 @@ class ProjectManager {
 
 
 module.exports = {
-	ProjectManager
+	ProjectManager, 
+	ProjectNotFoundError
 }

@@ -1,8 +1,12 @@
 const os = require("node:os");
 const path = require("node:path");
 const fs = require("node:fs/promises");
+const request = require("supertest");
+const assert = require("node:assert/strict");
 
+const {RessourceState} = require("engine/states");
 const Application = require("engine/application");
+
 const {
 	startWebAppServer
 } = require("web");
@@ -24,6 +28,7 @@ async function createTestApp() {
 		webServer = await startWebAppServer(application, {
 			port: 0,
 			log_app_errors: false,
+			log_unexpected_errors: false,
 		});
 
 		return {
@@ -65,6 +70,33 @@ async function createTestApp() {
 	}
 }
 
+
+async function createTestProject(ctx, projectName) {
+	await request(ctx.webServer.server)
+		.post(`/projects/api/create/${projectName}`)
+		.expect(200);
+	await verifyProjectDirectoryExists(ctx, projectName);
+}
+
+async function loadTestProject(ctx, projectName) {
+	await request(ctx.webServer.server)
+		.post(`/projects/api/open/${projectName}`)
+		.expect(200);
+	assert.equal(ctx.application.engine.project.name, projectName );
+	assert.equal(ctx.application.engine.project.state, RessourceState.READY );
+	assert.equal(ctx.application.engine.state, RessourceState.READY );
+}
+
+async function verifyProjectDirectoryExists(ctx, projectName){
+	const stat = await fs.stat( path.join(ctx.root, "projects", projectName ) );
+	assert.ok(stat.isDirectory());
+}
+
+
+
 module.exports = {
-	createTestApp
+	createTestApp,
+	createTestProject,
+	loadTestProject,
+	verifyProjectDirectoryExists
 };

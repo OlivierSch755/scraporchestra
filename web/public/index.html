@@ -74,7 +74,7 @@
 			
 						<dialog x-data="dialog('add_component')">
 							<h4>Adding components in project <em x-text="project.name"></em></h4>
-							<form @submit.prevent="project_manager.requestAddComponents( project, new FormData($el).getAll('selected_components')  )">
+							<form @submit.prevent="project_manager.requestAddComponents( new FormData($el).getAll('selected_components') )">
 								
 								<label>
 									<select  aria-describedby="component_select_hint" multiple name="selected_components">

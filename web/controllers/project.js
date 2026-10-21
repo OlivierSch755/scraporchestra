@@ -51,17 +51,15 @@ function createProjectsController( application ) {
 		res.json(application.config.auto_start_project);
 	});
 
-
-	router.post("/api/add_components/:project_name",  async ( req, res ) => {
-		const project_name = req.params.project_name;
+	router.post("/api/add_components",  async ( req, res ) => {
 		const components_to_add = req.body;
-		await application.addComponentsToProject( project_name, components_to_add );
+		await engine.safeAddComponentsToProject(components_to_add );
 		res.sendStatus(200);
 	});
 
-	router.post("/api/delete_component/:project_name/:component_name",  async ( req, res ) => {
-		const {project_name, component_name} = req.params;
-		await application.removeComponentFromProject( project_name, component_name );
+	router.post("/api/delete_component/:component_name",  async ( req, res ) => {
+		const {component_name} = req.params;
+		await engine.safeRemoveComponentFromProject(component_name );
 		res.sendStatus(200);
 	});
 

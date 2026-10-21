@@ -2,10 +2,7 @@ const Dispatcher = require("../dispatcher.js");
 
 const {
 	ComponentError,
-	ComponentUnexpectedlyTerminatedError,
 	ComponentNotProperlyClosedError,
-	ComponentInvalidError,
-	ComponentNotFoundError
 } = require("./errors.js");
 
 function random_wait(){
@@ -38,16 +35,14 @@ class Component {
 	static has_osc_controller = false;
 	
 	
-	static get_default_config =()=> {};
+	static get_default_config =()=> ({});
 	
 	static async installProject(){
 		// await random_wait();
-		return true; // not quite sure why we return true here
 	}
 	
 	static async uninstallProject( project ){
 		// await random_wait();
-		return true; // not quite sure why we return true here
 	}
 
 	static async verifyDependencies(){
@@ -55,6 +50,7 @@ class Component {
 	}
 	
 	project;
+	config;
 	name;
 	_state = RessourceState.CLOSED;
 	
@@ -73,8 +69,9 @@ class Component {
 		return {name, state};
 	}
 	
-	constructor(project){
+	constructor( config = {}, project ){
 		this.project = project;
+		this.config = config;
 		this.name = new.target.name;
 	}
 	

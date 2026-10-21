@@ -43,8 +43,23 @@ describe("Project lifecycle API", { concurrency: false },  () => {
 	it("rejects duplicate project creation", async () => {
 		await request(ctx.webServer.server)
 			.post(`/projects/api/create/${projectName}`)
-			.expect(500);
+			.expect(409);
 	});
+	
+	it("rejects invalid characters in project name", async () => {
+		const invalid_project_name = "*$.test";
+		await request(ctx.webServer.server)
+			.post(`/projects/api/create/${invalid_project_name}`)
+			.expect(400);
+	});
+	
+	it("rejects deleting project that does not exist", async () => {
+		const non_project = "I_do_not_exist";
+		await request(ctx.webServer.server)
+			.post(`/projects/api/delete/${non_project}`)
+			.expect(404);
+	});
+	
 	
 	it("loads project", async () => {
 		
@@ -85,3 +100,5 @@ describe("Project lifecycle API", { concurrency: false },  () => {
 	
 	
 });
+
+
