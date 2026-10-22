@@ -122,6 +122,7 @@ function gracefulComponentClose(component_name, component_instance){
 		const component_error = new ComponentNotProperlyClosedError();
 		component_error.component_name = component_name;
 		component_error.component_instance = component_instance;
+		component_error.cause = err;
 		throw component_error;
 	});
 }

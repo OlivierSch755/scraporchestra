@@ -223,7 +223,6 @@ class Project {
 		
 	}
 	
-	
 	// add a component to a (initialized) project  
 	async addComponent(component_name){
 		
@@ -293,7 +292,6 @@ class Project {
 		}
 	}
 	
-	
 	async removeComponent(component_name){
 		if( this.initialized === false ) {
 			throw new ProjectNotOpenedError("Cannot remove component from a project that has not been initialized");
@@ -314,8 +312,6 @@ class Project {
 		// and engine will take appropriate action
 		await gracefulComponentClose(component_name, component_instance);
 	}
-	
-	
 	
 	toJSON(){
 		const {name, state, config, components} = this;

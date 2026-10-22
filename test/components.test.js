@@ -13,11 +13,25 @@ const path = require("node:path");
 process.env.COMPONENTS_PATH = path.join(__dirname, "/helpers/dummy_components");
 
 const {RessourceState} = require("engine/states");
+const ComponentErrors = require("engine/component/errors");
 const {createTestApp, createTestProject, loadTestProject} = require("./helpers/create-test-app");
 const CrasherComponent = require("./helpers/dummy_components/crasher/crasher.js");
 
 const projectName = "test_project_components";
 
+function assertEngineDegradedState(ctx){
+	assert.equal(
+		ctx.application.engine.state, 
+		RessourceState.ERROR, 
+		"Engine should be in ERROR state"
+	);
+	
+	assert.equal(
+		ctx.application.engine.degraded, 
+		true,
+		"Engine should have degraded flag"
+	);
+}
 
 describe("Component discovery API", { concurrency: false }, () => {
 	let ctx;
@@ -30,7 +44,7 @@ describe("Component discovery API", { concurrency: false }, () => {
 		await ctx?.close();
 	});
 
-	it("Produces a valid list of available components", async () => {
+	it("produces a valid list of available components", async () => {
 		const response = await request(ctx.webServer.server)
 			.get(`/components/list.json`)
 			.expect(200);
@@ -173,13 +187,13 @@ describe("Component API no project", { concurrency: false }, () => {
 
 describe("Component API missing installation", { concurrency: false, todo: true },  () => {
 	
-	it("Rejects loading a project when one of its components installation file(s) have been removed", {todo: true}, async () => {
+	it("rejects loading a project when one of its components installation file(s) have been removed", {todo: true}, async () => {
 
 	});
 	
 })
 
-describe("Handling Component not being properly terminated on project close", { concurrency: false},  () => {
+describe("Project close fatal errors (degraded state)", { concurrency: false},  () => {
 	let ctx;
 	
 	before(async () => {
@@ -193,7 +207,7 @@ describe("Handling Component not being properly terminated on project close", { 
 			await ctx?.close();
 		}
 		catch(err){
-			// expected here
+			// expected here: this is what we are testing.
 			if(err.message !== "Could not clean up system properly"){ 
 				throw err;
 			}
@@ -201,7 +215,7 @@ describe("Handling Component not being properly terminated on project close", { 
 	});
 
 
-	it("Goes to Engine Degraded path after a component close failure during project close",  async () => {
+	it("goes to Engine Degraded path after a component close failure during project close",  async () => {
 		CrasherComponent.crash_on_init = false;
 		CrasherComponent.crash_on_close = true;
 		const component_name = "crasher";
@@ -222,23 +236,13 @@ describe("Handling Component not being properly terminated on project close", { 
 			CrasherComponent.crash_on_close = false;	
 		}
 		
-		assert.equal(
-			ctx.application.engine.state, 
-			RessourceState.ERROR, 
-			"Engine should be in ERROR state"
-		);
-		
-		assert.equal(
-			ctx.application.engine.degraded, 
-			true,
-			"Engine should have degraded flag"
-		);
+		assertEngineDegradedState(ctx);
 		
 	});
 	
 });
 
-describe("Handling Component not being properly terminated when removed from running project", { concurrency: false},  () => {
+describe("Live uninstallation fatal errors (degraded state)", { concurrency: false},  () => {
 	let ctx;
 	
 	before(async () => {
@@ -252,26 +256,27 @@ describe("Handling Component not being properly terminated when removed from run
 			await ctx?.close();
 		}
 		catch(err){
-			// expected here
+			// expected here: this is what we are testing.
 			if(err.message !== "Could not clean up system properly"){ 
 				throw err;
 			}
 		}
 	});
 
-
-	it("Goes to Engine Degraded path after a component failed to close during component uninstallation",  async () => {
+	it("goes to Engine Degraded path after a component failed to close during component uninstallation",  async () => {
 		CrasherComponent.crash_on_init = false;
 		CrasherComponent.crash_on_close = true;
 		try{
 			const component_name = "crasher";
-		
+			
+			// install without crashing
 			await request(ctx.webServer.server)
 				.post(`/projects/api/add_components`)
 				.send([component_name])
 				.set('Content-Type', 'application/json')
 				.expect(200);
 				
+			// crash during uninstall
 			await request(ctx.webServer.server)
 				.post(`/projects/api/delete_component/${component_name}`)
 				.expect(500);
@@ -282,18 +287,119 @@ describe("Handling Component not being properly terminated when removed from run
 			CrasherComponent.crash_on_close = false;	
 		}
 		
-		assert.equal(
-			ctx.application.engine.state, 
-			RessourceState.ERROR, 
-			"Engine should be in ERROR state"
-		);
-		
-		assert.equal(
-			ctx.application.engine.degraded, 
-			true,
-			"Engine should have degraded flag"
-		);
+		assertEngineDegradedState(ctx);
 		
 	});
 	
 });
+
+describe("Degraded state handling", { concurrency: false},  () => {
+	let ctx;
+	
+	let component_name = "dummy_component_name"
+	let component_instance = {};
+	
+	before(async () => {
+		ctx = await createTestApp();
+		await createTestProject(ctx, projectName);
+		await loadTestProject(ctx, projectName);
+	});
+
+	after(async () => {
+		try{
+			await ctx?.close();
+		}
+		catch(err){
+			// expected here: this is what we are testing.
+			if(err.message !== "Could not clean up system properly"){ 
+				throw err;
+			}
+		}
+	});
+
+	it("verifies Engine.handleCloseComponentError method",  async () => {
+		
+		// create a dummy error and pass it in the engine processor
+		const dummy_child_error = new Error("Test-generated Error");
+		const dummy_error = new ComponentErrors.ComponentNotProperlyClosedError();
+		dummy_error.component_name = component_name;
+		dummy_error.component_instance = component_instance;
+		dummy_error.cause = dummy_child_error;
+
+		assert.throws(
+		    ()=> ctx.application.engine.handleCloseComponentError(dummy_error),
+		  {
+			name: 'EngineDegradedError',
+			cause: dummy_error,
+		  },
+		);
+		
+		assertEngineDegradedState(ctx);
+		
+	});
+	
+	it("rejects project operations when engine is degraded",  async () => {
+		
+		// should not allow to close project
+		let res = await request(ctx.webServer.server)
+			.post(`/projects/api/close`);
+			
+		assert.equal(
+			res.status,
+			409,
+			`Calling close project API when degraded should return HTTP 409, got ${res.status}: ${res.text}`
+		);
+
+		// should not allow to open project
+		res = await request(ctx.webServer.server).post(`/projects/api/open/${projectName}`)
+		assert.equal(
+			res.status,
+			409,
+			`Calling open project API when degraded should return HTTP 409, got ${res.status}: ${res.text}`
+		);
+
+		const component_name = "working";
+		
+		// should not allow to install components
+		res = await request(ctx.webServer.server)
+			.post(`/projects/api/add_components`)
+			.send([component_name])
+			.set('Content-Type', 'application/json');
+			
+		assert.equal(
+			res.status,
+			409,
+			`Calling component installation API when degraded should return HTTP 409, got ${res.status}: ${res.text}`
+		);
+		
+		
+		// should not allow to uninstall components
+		res = await request(ctx.webServer.server)
+			.post(`/projects/api/delete_component/${component_name}`)
+			.set('Content-Type', 'application/json');
+			
+		assert.equal(
+			res.status,
+			409,
+			`Calling component installation API when degraded should return HTTP 409, got ${res.status}: ${res.text}`
+		);
+		
+		
+		
+		
+	});
+	
+	
+});
+
+describe("Degraded state error reporting", { concurrency: false, todo : true},  () => {
+	
+	it("returns degraded state in a consistent format", { todo:true },  async () => {
+		
+	});
+	
+	it("provides a user-readable way to understand degraded state", { todo:true },  async () => {
+		
+	});
+	
+})

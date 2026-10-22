@@ -1,3 +1,22 @@
+/*
+
+Engine class
+
+Its main jobs are:
+
+- Being the source of truth about current project operational state
+- Monitoring errors to make sure system is stable before loading next project
+
+It should be in READY state to indicate that system state is safe to perform project operation 
+	Most of those operations are usually non-trivial async jobs, like filesystem I/O or child-processes management.
+	
+This "supervisor-like" class is needed here to guard against conflicting operations being executed at the same time.
+And to fail early when the system is no longer considered safe to operate, so user may take appropriate action like rebooting. 
+
+*/
+
+
+
 const {Project} = require("./project.js")
 const {ScrapOrchestraError} = require("../lib/errors.js");
 const ComponentErrors = require("./component/errors.js");
@@ -11,6 +30,12 @@ class EngineBusyError extends ScrapOrchestraError {
 }
 
 class ProjectLoadFailure extends ScrapOrchestraError {
+    constructor(message, options) {
+        super("FAILED", message, options);
+    }
+}
+
+class EngineDegradedError extends ScrapOrchestraError {
     constructor(message, options) {
         super("FAILED", message, options);
     }
@@ -48,6 +73,7 @@ class Engine {
 	}
 	
 	async open_project( abs_path_to_project_dir ){
+		this.verifyNotDegraded();
 		this.verifyNotBusy();
 		if( this.project ) throw new EngineBusyError("Engine is already running a project");
 		
@@ -90,6 +116,7 @@ class Engine {
 	}
 
 	async close_project(){
+		this.verifyNotDegraded();
 		this.verifyLoadedProject();
 		this.verifyNotBusy();
 		this.state = RessourceState.LOADING;
@@ -107,6 +134,7 @@ class Engine {
 	}
 	
 	async safeAddComponentsToProject(list_of_components_names){
+		this.verifyNotDegraded();
 		this.verifyLoadedProject();
 		this.verifyNotBusy();
 		this.state = RessourceState.LOADING;
@@ -119,6 +147,7 @@ class Engine {
 	}
 	
 	async safeRemoveComponentFromProject(component_name){
+		this.verifyNotDegraded();
 		this.verifyLoadedProject();
 		this.verifyNotBusy();
 		this.state = RessourceState.LOADING;
@@ -146,9 +175,6 @@ class Engine {
 			// This error specifically means that ressources have not been cleaned properly.
 			// So immediate degradation.
 			if(error instanceof ComponentErrors.ComponentNotProperlyClosedError){
-				
-	
-				
 				degraded_flag |= true;
 				degraded_report.components.component_name = error.component_instance;
 				return;
@@ -183,7 +209,9 @@ class Engine {
 				this.degraded = true;
 				this.state = RessourceState.ERROR;
 				this.degraded_report = degraded_report;
-				throw new EngineError("Engine Degraded. Last operation left some stray resources running, next project load may fail, reboot advised.");
+				const degradedError = new EngineDegradedError("Engine Degraded. Last operation left some stray resources running, next project load may fail, reboot advised.");
+				degradedError.cause = err;
+				throw degradedError;
 			}
 		}
 	}
