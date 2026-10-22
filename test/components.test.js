@@ -67,42 +67,56 @@ describe("Component API lifecycle", { concurrency: false }, () => {
 	});
 	
 	it("installs working component",  async () => {
+		
+		const component_name = "working";
+		
 		await request(ctx.webServer.server)
 			.post(`/projects/api/add_components`)
-			.send(["working"])
+			.send([component_name])
 			.set('Content-Type', 'application/json')
 			.expect(200);
 			
-			assert.equal(ctx.application.engine.project.components.working.state, RessourceState.READY );
+			assert.equal(ctx.application.engine.project.components[component_name].state, RessourceState.READY );
 			assert.equal(ctx.application.engine.project.state, RessourceState.READY );	
 			
 	});
 	
 	it("verifies component cannot be installed multiple times",  async () => {
+		const component_name = "working";
 		 await request(ctx.webServer.server)
 			.post(`/projects/api/add_components`)
-			.send(["working"])
+			.send([component_name])
 			.set('Content-Type', 'application/json')
 			.expect(409);
 	});
 	
 	it("produces error when installing a crashing component in a running project", async () => {
-		await request(ctx.webServer.server)
-			.post(`/projects/api/add_components`)
-			.send(["crasher"])
-			.set('Content-Type', 'application/json')
-			.expect(500);
-			
-		assert.equal(ctx.application.engine.project.components.crasher.state, RessourceState.ERROR );
+		CrasherComponent.crash_on_init = true;
+		
+		const component_name = "crasher";
+		
+		try{
+			const res = await request(ctx.webServer.server)
+				.post(`/projects/api/add_components`)
+				.send([component_name])
+				.set('Content-Type', 'application/json')
+		}
+		finally{
+			CrasherComponent.crash_on_init = false;	
+		}
+		assert.equal(ctx.application.engine.project.components[component_name].state, RessourceState.ERROR );
 		assert.equal(ctx.application.engine.project.state, RessourceState.ERROR );	
 	});
 	
-	it("can uninstall faulty component", async () => {
+	it("can uninstall component after failed installation", async () => {
+		
+		const component_name = "crasher";
+		
 		const result = await request(ctx.webServer.server)
-			.post(`/projects/api/delete_component/crasher`)
+			.post(`/projects/api/delete_component/${component_name}`)
 			.expect(200);
 			
-		assert.equal(ctx.application.engine.project.components.crasher, undefined );
+		assert.equal(ctx.application.engine.project.components[component_name], undefined );
 		
 		assert.equal(
 			ctx.application.engine.project.state, 
@@ -111,7 +125,22 @@ describe("Component API lifecycle", { concurrency: false }, () => {
 		);	
 	});
 	
-	
+	it("can uninstall working component", async () => {
+		
+		const component_name = "working";
+		
+		await request(ctx.webServer.server)
+			.post(`/projects/api/delete_component/${component_name}`)
+			.expect(200);
+			
+		assert.equal(ctx.application.engine.project.components[component_name], undefined );
+		
+		assert.equal(
+			ctx.application.engine.project.state, 
+			RessourceState.READY,
+			"Project state should be READY after removing working component"
+		);	
+	});
 	
 });
 
@@ -149,10 +178,122 @@ describe("Component API missing installation", { concurrency: false, todo: true 
 	});
 	
 })
-describe("Handling Component not being properly terminated", { concurrency: false, todo: true },  () => {
-	
-	it("Notifies engine degraded after error detection", {todo: true}, async () => {
 
+describe("Handling Component not being properly terminated on project close", { concurrency: false},  () => {
+	let ctx;
+	
+	before(async () => {
+		ctx = await createTestApp();
+		await createTestProject(ctx, projectName);
+		await loadTestProject(ctx, projectName);
+	});
+
+	after(async () => {
+		try{
+			await ctx?.close();
+		}
+		catch(err){
+			// expected here
+			if(err.message !== "Could not clean up system properly"){ 
+				throw err;
+			}
+		}
+	});
+
+
+	it("Goes to Engine Degraded path after a component close failure during project close",  async () => {
+		CrasherComponent.crash_on_init = false;
+		CrasherComponent.crash_on_close = true;
+		const component_name = "crasher";
+		
+		try{
+			await request(ctx.webServer.server)
+				.post(`/projects/api/add_components`)
+				.send([component_name])
+				.set('Content-Type', 'application/json')
+				.expect(200);
+				
+			await request(ctx.webServer.server)
+				.post(`/projects/api/close`)
+				.expect(500);
+		}
+		finally{
+			CrasherComponent.crash_on_init = false;	
+			CrasherComponent.crash_on_close = false;	
+		}
+		
+		assert.equal(
+			ctx.application.engine.state, 
+			RessourceState.ERROR, 
+			"Engine should be in ERROR state"
+		);
+		
+		assert.equal(
+			ctx.application.engine.degraded, 
+			true,
+			"Engine should have degraded flag"
+		);
+		
 	});
 	
-})
+});
+
+describe("Handling Component not being properly terminated when removed from running project", { concurrency: false},  () => {
+	let ctx;
+	
+	before(async () => {
+		ctx = await createTestApp();
+		await createTestProject(ctx, projectName);
+		await loadTestProject(ctx, projectName);
+	});
+
+	after(async () => {
+		try{
+			await ctx?.close();
+		}
+		catch(err){
+			// expected here
+			if(err.message !== "Could not clean up system properly"){ 
+				throw err;
+			}
+		}
+	});
+
+
+	it("Goes to Engine Degraded path after a component failed to close during component uninstallation",  async () => {
+		CrasherComponent.crash_on_init = false;
+		CrasherComponent.crash_on_close = true;
+		try{
+			const component_name = "crasher";
+		
+			await request(ctx.webServer.server)
+				.post(`/projects/api/add_components`)
+				.send([component_name])
+				.set('Content-Type', 'application/json')
+				.expect(200);
+				
+			await request(ctx.webServer.server)
+				.post(`/projects/api/delete_component/${component_name}`)
+				.expect(500);
+			
+		}
+		finally{
+			CrasherComponent.crash_on_init = false;	
+			CrasherComponent.crash_on_close = false;	
+		}
+		
+		assert.equal(
+			ctx.application.engine.state, 
+			RessourceState.ERROR, 
+			"Engine should be in ERROR state"
+		);
+		
+		assert.equal(
+			ctx.application.engine.degraded, 
+			true,
+			"Engine should have degraded flag"
+		);
+		
+	});
+	
+});

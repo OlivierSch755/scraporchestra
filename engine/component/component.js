@@ -48,6 +48,8 @@ class Component {
 	static async verifyDependencies(){
 		return true;
 	}
+
+	
 	
 	project;
 	config;
@@ -109,8 +111,19 @@ class Component {
 		}
 	}
 	
+}
 
-	
+function gracefulComponentClose(component_name, component_instance){
+	return component_instance.close().catch(err => {
+		// flag component instance as in error state if it exists at this point
+		if(component_instance){
+			component_instance.state = RessourceState.ERROR;
+		}
+		const component_error = new ComponentNotProperlyClosedError();
+		component_error.component_name = component_name;
+		component_error.component_instance = component_instance;
+		throw component_error;
+	});
 }
 
 
@@ -120,4 +133,4 @@ class Component {
 
 
 
-module.exports = {Component};
+module.exports = {Component, gracefulComponentClose};

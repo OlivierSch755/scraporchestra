@@ -2,7 +2,7 @@ const path  = require('node:path');
 const fs = require('node:fs/promises');
 const os = require("node:os");
 
-const {Component} = require("./component/component.js");
+const {Component, gracefulComponentClose} = require("./component/component.js");
 const {lookupComponent} = require("./component/utils.js");
 const ComponentErrors = require("./component/errors.js");
 
@@ -194,14 +194,33 @@ class Project {
 
 		Dispatcher.off("component.state", this.componentRuntimeStateChangeHandler);
 		
-		const component_close_result = await Promise.allSettled(
-			Object.values(this.components).map( ( component ) => component.close() )
-		);
+		// create list of promises with all component close() method tasks
+		const close_components_tasks = Object.entries(this.components)
+			.map( entry => gracefulComponentClose(...entry) );
 		
 		
+		// wait for all close tasks to complete
+		const component_close_result = await Promise.allSettled(close_components_tasks);
 		
+		const close_errors = component_close_result.filter( prom => prom.status === "rejected").map( rejection => rejection.reason )
+		
+		// do not clear project components property until closes tasks completion
+		// that way UI can still monitor which component is stuck or causing error
 		this.components = {};
+		
+		// Project abstraction shound not be in charge of handling components close errors.
+		// Engine should be the one to decide what to do with those errors. 
+		// Because such errors are only dangerous in that they may cause issue in next project load,
+		// and making sure system is safe for loading next project is the Engine's job, not the Project session.
+		// So project does not care about close error and can be considered as closed even if everything went wrong before.
 		this.state = RessourceState.CLOSED;
+		
+
+		if(close_errors.length){
+			throw new AggregateError(close_errors);
+		}
+		
+		
 	}
 	
 	
@@ -291,9 +310,9 @@ class Project {
 		delete this.config.components[component_name];
 		delete this.components[component_name];
 	
-		// should throw ComponentNotProperlyClosedError if failed
-		// and engine must take appropriate action
-		await component_instance.close();
+		// throws ComponentNotProperlyClosedError if failed
+		// and engine will take appropriate action
+		await gracefulComponentClose(component_name, component_instance);
 	}
 	
 	

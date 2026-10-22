@@ -1,5 +1,6 @@
 const {Project} = require("./project.js")
 const {ScrapOrchestraError} = require("../lib/errors.js");
+const ComponentErrors = require("./component/errors.js");
 const {RessourceState, validateState} = require("./states.js");
 const Dispatcher = require("./dispatcher.js")
 
@@ -32,6 +33,10 @@ class Engine {
 	
 	constructor(){
 		this.state = RessourceState.CLOSED;
+	}
+	
+	verifyNotDegraded(){
+		if( this.state === RessourceState.ERROR || this.degraded ) throw new EngineBusyError("Engine is degraded.");
 	}
 	
 	verifyLoadedProject(){
@@ -97,8 +102,7 @@ class Engine {
 			this.state = RessourceState.CLOSED;
 		}
 		catch(err){
-			this.handleDegradation(err);
-			throw new EngineError("Engine could no close project properly, next project load may fail, reboot advised.");
+			this.handleCloseComponentError(err);
 		}
 	}
 	
@@ -108,9 +112,6 @@ class Engine {
 		this.state = RessourceState.LOADING;
 		try{
 			await this.project.addComponents(list_of_components_names);
-		}
-		catch(err){
-			throw err;
 		}
 		finally{
 			this.state = RessourceState.READY;
@@ -125,18 +126,66 @@ class Engine {
 			await this.project.removeComponent(component_name);
 		}
 		catch(err){
-			throw err;
+			this.handleCloseComponentError(err);
 		}
-		finally{
-			this.state = RessourceState.READY;
-			Dispatcher.emit("engine.snapshot", this);
-		}
+		this.state = RessourceState.READY;
+		Dispatcher.emit("engine.snapshot", this);
 	}
 	
-	handleDegradation(err){
-		this.degraded = true;
-		this.state = RessourceState.ERROR
+	// This must be executed after any action that may close a component (and fail to do so)
+	// (removing component from project, closing project)
+	handleCloseComponentError(err){
 		
+		let degraded_flag = false;
+		let degraded_report = {
+			components : {},
+			unexpected_errors : []
+		};
+		
+		function testError(error){
+			// This error specifically means that ressources have not been cleaned properly.
+			// So immediate degradation.
+			if(error instanceof ComponentErrors.ComponentNotProperlyClosedError){
+				
+	
+				
+				degraded_flag |= true;
+				degraded_report.components.component_name = error.component_instance;
+				return;
+			}
+			
+			// If error is not one of our own Application error, assume something went terribly wrong.
+			// Also immediate degradation.
+			if(! error instanceof ScrapOrchestraError){
+				degraded_flag &= true;
+				degraded_report.unexpected_errors.push( error.component_instance );
+				return;
+			}
+		}
+		
+		try{
+			// may be AggregateError if it came from a project.close() method (many components failed).
+			if(err instanceof AggregateError){
+				for(let error of err.errors){
+					testError(error);
+				}
+			}
+			else {
+				testError(err);
+			}
+		}
+		catch(nested_error){
+			// if error checking above failed, assume everything is broken.
+			degraded_flag |= true;
+		}
+		finally{
+			if(degraded_flag){
+				this.degraded = true;
+				this.state = RessourceState.ERROR;
+				this.degraded_report = degraded_report;
+				throw new EngineError("Engine Degraded. Last operation left some stray resources running, next project load may fail, reboot advised.");
+			}
+		}
 	}
 	
 	toJSON(){
