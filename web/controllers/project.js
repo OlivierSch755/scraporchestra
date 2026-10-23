@@ -74,13 +74,8 @@ function createProjectsController( application ) {
 		res.json(project);
 	});
 	
-	router.post("/api/saveconfig/:project_name", async ( req, res ) => {
-		
+	router.post("/api/save", async ( req, res ) => {
 		const project = engine.project;
-		if( req.params.project_name !== project.name ){
-			throw {message : "Cannot save a project that is not loaded in the engine."}
-		}
-		
 		await projectManager.saveProjectSession( project );
 		res.sendStatus(200);
 	});

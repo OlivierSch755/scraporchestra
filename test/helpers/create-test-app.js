@@ -11,11 +11,23 @@ const {
 	startWebAppServer
 } = require("web");
 
-async function createTestApp() {
-	const root = await fs.mkdtemp(
-		path.join(os.tmpdir(), "scraporchestra-test-")
-	);
-
+async function createTestApp(options = {}) {
+	
+	
+	let root;
+	let keep_root = options.keep_root || false;
+	
+	
+	// let test provide its own root if needed
+	if(options.root){
+		root = options.root;
+	}
+	else{
+		root = await fs.mkdtemp(
+			path.join(os.tmpdir(), "scraporchestra-test-")
+		);
+	}
+	
 	let application;
 	let webServer;
 
@@ -49,10 +61,12 @@ async function createTestApp() {
 					if(application.engine.degraded) throw new Error("Could not clean up system properly");
 				}
 				finally{
-					await fs.rm(root, {
-						recursive: true,
-						force: true
-					});
+					if(!keep_root){
+						await fs.rm(root, {
+							recursive: true,
+							force: true
+						});
+					}
 				}
 			},
 		};

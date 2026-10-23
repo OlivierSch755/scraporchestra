@@ -122,7 +122,7 @@ Alpine.store('project_manager', {
 		this.requestInProgress = true;
 		const project = Alpine.store("engine").project;
 		if(!project) return;
-		const save_config_route = "/projects/api/saveconfig/" + project.name;
+		const save_config_route = "/projects/api/save";
 		try{
 			const req = await fetch(save_config_route , {method : "post"});
 			if(req.ok){

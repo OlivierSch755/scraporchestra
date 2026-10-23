@@ -219,7 +219,7 @@ describe("Sushi process unexpected errors", { concurrency: false }, () => {
 		await assertComponentInstallation(ctx);	
 		
 		await request(ctx.webServer.server)
-			.post(`/projects/api/saveconfig/${projectName}`)
+			.post(`/projects/api/save`)
 			.expect(200);
 		
 	});
@@ -237,18 +237,23 @@ describe("Sushi process unexpected errors", { concurrency: false }, () => {
 	});
 	
 	it("takes appropriate action if Sushi exits unexpectedly", async () => {
+		
 		const project = ctx.application.engine.project;
 		const component = project.components.sushi;
 		const instance = component.instance;
+		
 		let {pid,killed,exitCode} = instance;
 		
 		assert.equal(typeof pid, 'number', "Sushi instance should have a pid" );
 		assert.equal(exitCode, null, "Sushi instance should not have an exit code" );
 		assert.equal(killed, false, "Sushi instance should not be killed now" );
 		
-		process.kill(pid);
+		const exit_promise = once(instance, "exit");
 		
-		await once(instance, "exit");
+		
+		
+		process.kill(pid);
+		await exit_promise;
 		
 		assert.equal(instance.exitCode, 0, "Sushi instance exit code should be 0" );
 		
