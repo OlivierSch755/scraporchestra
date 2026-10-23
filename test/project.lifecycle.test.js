@@ -197,3 +197,15 @@ describe("Project discovery API", { concurrency: false },  () => {
 	});
 	
 })
+
+describe("Project Autostart API", { concurrency: false, todo:true },  () => {
+
+	it("set an autorstarting project", {todo:true}, async () => {
+		
+	});
+	
+	it("autostarts project", {todo:true}, async () => {
+		
+	});
+	
+})
