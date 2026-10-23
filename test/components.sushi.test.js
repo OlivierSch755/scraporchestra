@@ -2,7 +2,6 @@
 	Suite of test for Sushi component
 */
 
-
 const {describe,it,before,after} = require("node:test");
 const assert = require("node:assert/strict");
 const request = require("supertest");
@@ -26,7 +25,6 @@ const Sushi = require("components/sushi");
 })();
 
 const projectName = "test_project_sushi";
-
 
 async function assertComponentInstallation(ctx){
 
@@ -53,7 +51,6 @@ async function assertComponentInstallation(ctx){
 		RessourceState.READY,
 		"Sushi component should be in ready state after installation request completed"
 	);		
-	
 	
 	// verify config file has been written to project dir
 	const expected_sushi_config_file_path = path.join(
