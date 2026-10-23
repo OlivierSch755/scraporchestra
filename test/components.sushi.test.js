@@ -11,6 +11,7 @@ const path = require("node:path");
 const {once} = require("node:events");
 
 const {RessourceState} = require("engine/states");
+const ComponentErrors = require("engine/component/errors");
 const {createTestApp, createTestProject, loadTestProject} = require("./helpers/create-test-app");
 const Sushi = require("components/sushi");
 
@@ -67,7 +68,7 @@ async function assertComponentInstallation(ctx){
 
 describe("Sushi component API", { concurrency: false }, () => {
 	let ctx;
-	
+
 	// helpers
 	async function startSushiEditor() {
 		await request(ctx.webServer.server)
@@ -76,7 +77,7 @@ describe("Sushi component API", { concurrency: false }, () => {
 
 		const sushi = ctx.application.engine.project.components.sushi;
 		const editor = sushi.editor_backend;
-		
+
 		assert.ok(
 			editor.proxy.ok,
 			"Sushi gRPC Proxy should report readiness"
@@ -96,7 +97,7 @@ describe("Sushi component API", { concurrency: false }, () => {
 
 		return { sushi, editor };
 	}
-	
+
 	async function assertEditorClosed(editor){
 		assert.equal(
 			editor.proxy.closed, 
@@ -140,7 +141,6 @@ describe("Sushi component API", { concurrency: false }, () => {
 			{ code: "ENOENT" }
 		);
 		
-		
 	}
 	
 	before(async () => {
@@ -153,8 +153,6 @@ describe("Sushi component API", { concurrency: false }, () => {
 		await ctx?.close();
 	});
 
-
-	
 	it("tests component installation", async () => {
 		await request(ctx.webServer.server)
 			.post(`/projects/api/add_components`)
@@ -221,7 +219,6 @@ describe("Sushi process unexpected errors", { concurrency: false }, () => {
 		await request(ctx.webServer.server)
 			.post(`/projects/api/save`)
 			.expect(200);
-		
 	});
 
 	after(async () => {
@@ -248,35 +245,41 @@ describe("Sushi process unexpected errors", { concurrency: false }, () => {
 		assert.equal(exitCode, null, "Sushi instance should not have an exit code" );
 		assert.equal(killed, false, "Sushi instance should not be killed now" );
 		
-		const exit_promise = once(instance, "exit");
+		const dispatcher = ctx.application.Dispatcher;
+		const expected_signal = once(dispatcher, "component.error");
 		
+		assert.equal(component.state, RessourceState.READY, "Sushi component should be ready" );
 		
+		// kill Sushi with SIGKILL 
+		process.kill(pid, 'SIGKILL');
 		
-		process.kill(pid);
-		await exit_promise;
-		
-		assert.equal(instance.exitCode, 0, "Sushi instance exit code should be 0" );
-		
-		// leave some cycles so Engine has a chance to process error
-		await new Promise( (resolve,reject)=>{
-			setTimeout( resolve , 0)
-		})
+		const signal = await expected_signal;
 
-		assert.equal(component.state, RessourceState.ERROR,"Sushi component state should be ERROR after unexpected exit" );
-		assert.equal(project.state, RessourceState.ERROR,"Project state should be ERROR after unexpected exit" );
+		const message = signal[0];
+		const error = message.error;
 		
+		assert(message.component instanceof Sushi);
+		assert.equal(message.component, component, "Expected error should have been thrown by Sushi instance");
+		assert(error instanceof ComponentErrors.ComponentUnexpectedlyTerminatedError, "Expected ComponentUnexpectedlyTerminatedError");
+		
+		assert.equal(instance.signalCode, 'SIGKILL', "Sushi instance signalCode should be SIGKILL" );
+		
+		 // Allow engine to process event
+		await new Promise(resolve => setImmediate(resolve));
+		
+		assert.equal(component.state, RessourceState.ERROR, "Sushi component state should be ERROR after unexpected exit" );
+		assert.equal(project.state, RessourceState.ERROR, "Project state should be ERROR after unexpected exit" );
 	});
 	
 	it("verifies project can be restarted after unexpected exit", async () => {
-		
+
 		await request(ctx.webServer.server)
 			.post(`/projects/api/close`)
 			.expect(200);
-				
+		
 		await loadTestProject(ctx, projectName);
 		
 		await assertComponentInstallation(ctx);
-			
 	});
 
 

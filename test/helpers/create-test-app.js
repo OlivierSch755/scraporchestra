@@ -7,12 +7,9 @@ const assert = require("node:assert/strict");
 const {RessourceState} = require("engine/states");
 const Application = require("engine/application");
 
-const {
-	startWebAppServer
-} = require("web");
+const {startWebAppServer} = require("web");
 
 async function createTestApp(options = {}) {
-	
 	
 	let root;
 	let keep_root = options.keep_root || false;
@@ -71,11 +68,10 @@ async function createTestApp(options = {}) {
 			},
 		};
 	}
-	catch (err) {
+	catch(err){
 		if (webServer) {
 			await webServer.close();
 		}
-
 		await fs.rm(root, {
 			recursive: true,
 			force: true
@@ -84,7 +80,6 @@ async function createTestApp(options = {}) {
 	}
 }
 
-
 async function createTestProject(ctx, projectName) {
 	await request(ctx.webServer.server)
 		.post(`/projects/api/create/${projectName}`)
@@ -92,10 +87,36 @@ async function createTestProject(ctx, projectName) {
 	await verifyProjectDirectoryExists(ctx, projectName);
 }
 
-async function loadTestProject(ctx, projectName) {
-	await request(ctx.webServer.server)
+async function loadTestProject(ctx, projectName, options = {}, attempt = 0, max_attempts = 2) {
+	
+	const timeout_duration = options?.timeout_duration ?? 5000;
+	let settled = false;
+	
+	const timeout_promise = new Promise( (_,reject)=>{
+		setTimeout(
+			()=>{
+				if(settled) return;
+				settled = true;
+				reject();
+			}, timeout_duration
+		);
+	});
+	
+	const request_promise = request(ctx.webServer.server)
 		.post(`/projects/api/open/${projectName}`)
-		.expect(200);
+		.expect(200)
+		.then( ()=>{
+			if(settled) return;
+			settled = true;
+		});
+	
+	try{
+		await Promise.race([timeout_promise, request_promise]);
+	}
+	catch(err){
+		throw new Error("Could not load project in a timely fashion")
+	}
+	
 	assert.equal(ctx.application.engine.project.name, projectName );
 	assert.equal(ctx.application.engine.project.state, RessourceState.READY );
 	assert.equal(ctx.application.engine.state, RessourceState.READY );
@@ -105,8 +126,6 @@ async function verifyProjectDirectoryExists(ctx, projectName){
 	const stat = await fs.stat( path.join(ctx.root, "projects", projectName ) );
 	assert.ok(stat.isDirectory());
 }
-
-
 
 module.exports = {
 	createTestApp,
