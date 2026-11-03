@@ -1,15 +1,14 @@
 const { once } = require("node:events");
 const fs = require('node:fs/promises');
 
-const { Component, ComponentState } = require("./component.js")
 const Dispatcher = require("../dispatcher.js");
+const { Component } = require("./component.js")
+const {RessourceState} = require("engine/states");
 
 const {
 	ComponentError,
 	ComponentUnexpectedlyTerminatedError,
 	ComponentNotProperlyClosedError,
-	ComponentInvalidError,
-	ComponentNotFoundError
 } = require("engine/component/errors");
 
 
@@ -36,7 +35,7 @@ class ComponentProcess extends Component{
 	
 	async close(options = {}){
 		
-		this.state = ComponentState.CLOSING;
+		this.state = RessourceState.CLOSING;
 		let err2;
 		
 		if (this.instance && this.instance.exitCode === null && !this.instance.killed) {
@@ -45,22 +44,23 @@ class ComponentProcess extends Component{
 				await once(this.instance, "close");
 			}
 			catch(err){
-				err2 = new ComponentNotProperlyClosedError( `Could not kill process spawned by component ${this.name} (...suspect)` );
+				err2 = new ComponentNotProperlyClosedError( `Could not kill process spawned by component ${this.name} (danger)` );
 				err2.cause = err;
 			}
 		}
 		else if( !options.ignore_missing_process  ){
-			console.warn( new ComponentNotProperlyClosedError( `Component ${this.name} has no process to kill (...suspect)` ) )
+			const warning =  new ComponentNotProperlyClosedError( `Component ${this.name} has no process to kill when asked to close (suspect)` );
+			Dispatcher.emit("component.warning", {component : this, warning} ); // this is used nowhere so far
 		}
 		
 		this.instance = null;
 		
 		if( err2 ){
-			this.state = ComponentState.ERROR;
+			this.state = RessourceState.ERROR;
 			throw err2;
 		}
 		
-		this.state = ComponentState.CLOSED;
+		this.state = RessourceState.CLOSED;
 		
 	}
 	
@@ -73,26 +73,23 @@ class ComponentProcess extends Component{
 	}
 	
 	handleClose(instance){
-		instance.once("close", (e) =>{
+		instance.once("close", (event) =>{
 			this.instance = null;
-			
-			if( this.state === ComponentState.CLOSING ) return;
-			this.state = ComponentState.ERROR;
-			
-			const err = new ComponentUnexpectedlyTerminatedError( `Component ${this.name} process should not have exited now` );
-			// this.emit("error", err ) ;
-			console.error(err);
+			if( this.state === RessourceState.CLOSING ) return;
+			this.state = RessourceState.ERROR;
+			const error = new ComponentUnexpectedlyTerminatedError( `Component ${this.name} process exited unexpectedly` );
+			error.closeEvent = event;
+			Dispatcher.emit("component.error", {component : this, error} ); // this is used nowhere so far
 		} );	
 	}
 	
 	handleError(instance){
 		instance.once("error", (err) =>{
 			this.instance = null;
-			this.state = ComponentState.ERROR;
-			const err2 = new ComponentError( `Component ${this.name} process error`  );
-			err2.cause = err;
-			// this.emit("error", err ) ;
-			console.error(err2);
+			this.state = RessourceState.ERROR;
+			const error = new ComponentError( `Component ${this.name} process error` );
+			error.cause = err;
+			Dispatcher.emit("component.error", {component : this, error} ); // this is used nowhere so far
 		});
 		
 	}

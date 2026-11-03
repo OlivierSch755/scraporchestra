@@ -92,49 +92,44 @@ class SushiWebProxyServer extends EventEmitter{
 	}
 	
 	async connect(){
-		console.log("Attempt to connect to Sushi...")
-			
-
-			
-			// verify api version (and check if sushi is running)
-			let api_version_response = null;
-			try{
-				// bug : client will lag a lot sometimes when reconnecting, maybe should renew client
-				api_version_response = await this.rawUnaryMessage(Buffer.alloc(0), this.stubs.GetSushiApiVersion );
-			}
-			catch(err){
-				if(err.code === grpc.status.UNAVAILABLE){
-					console.warn("Sushi not found");
-					this.why_app_is_offline = `Gateway proxy is not connected to Sushi GRPC server. Check if Sushi is running (and at correct address).`;
-					this.reconnect_if_needed();
-					return;
-				}
-				throw err;	// TODO : maybe should watch more error codes ? 
-			}
-			
-			console.log("Sushi found");
-			
-			const remote_api_version = this.stubs.GetSushiApiVersion
-				.resolvedResponseType
-				.decode(api_version_response)
-				.value;
-			
-			if(remote_api_version !== EXPECTED_API_VERSION){
-				console.error("Wrong API version (will not try to reconnect)")
-				this.why_app_is_offline = `Sushi was found but its API version (${remote_api_version}) does not match the gateway_proxy version (${EXPECTED_API_VERSION}).`;
+		
+		// verify api version (and check if sushi is running)
+		let api_version_response = null;
+		try{
+			// bug : client will lag a lot sometimes when reconnecting, maybe should renew client
+			api_version_response = await this.rawUnaryMessage(Buffer.alloc(0), this.stubs.GetSushiApiVersion );
+		}
+		catch(err){
+			if(err.code === grpc.status.UNAVAILABLE){
+				console.warn("Sushi not found");
+				this.why_app_is_offline = `Gateway proxy is not connected to Sushi GRPC server. Check if Sushi is running (and at correct address).`;
+				this.reconnect_if_needed();
 				return;
 			}
-			
-			// catch asyncCommandResponse and resolve them on the fly 
-			this.asyncValidator.attachToGrpcClient( this.grpc_client );
-			this.asyncValidator.once("error", this.handleAsyncValidatorError  );
-			
-			// we create a fresh multiplexer on each connection
-			this.createStreamMultiplexer();
-			
-			console.log("Sushi OK");
-			this.ok = true;
+			throw err;	// TODO : maybe should watch more error codes ? 
+		}
 		
+		// Sushi found
+		
+		const remote_api_version = this.stubs.GetSushiApiVersion
+			.resolvedResponseType
+			.decode(api_version_response)
+			.value;
+		
+		if(remote_api_version !== EXPECTED_API_VERSION){
+			console.error("Wrong API version (will not try to reconnect)")
+			this.why_app_is_offline = `Sushi was found but its API version (${remote_api_version}) does not match the gateway_proxy version (${EXPECTED_API_VERSION}).`;
+			return;
+		}
+		
+		// catch asyncCommandResponse and resolve them on the fly 
+		this.asyncValidator.attachToGrpcClient( this.grpc_client );
+		this.asyncValidator.once("error", this.handleAsyncValidatorError  );
+		
+		// we create a fresh multiplexer on each connection
+		this.createStreamMultiplexer();
+		
+		this.ok = true;
 	}
 	
 	handleAsyncValidatorError(error){
@@ -144,7 +139,8 @@ class SushiWebProxyServer extends EventEmitter{
 		}
 		
 		this.ok = false;
-		console.log("Sushi lost");
+		// console.warn("Sushi lost");
+		
 		// Inform future clients that we are unfortunately broken.
 		this.why_app_is_offline = `Gateway is no longer connected to Sushi GRPC server. Probable cause is Sushi was closed.`;
 	

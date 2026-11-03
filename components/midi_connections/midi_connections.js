@@ -3,7 +3,7 @@ const {spawn, exec} = require("node:child_process");
 const fs = require("node:fs/promises");
 const {isDeepStrictEqual} = require("node:util");
 const Dispatcher = require("engine/dispatcher");
-const {ComponentState} = require("engine/component");
+const {RessourceState} = require("engine/states");
 const {ComponentProcess} = require("engine/component/process");
 
 const {
@@ -49,7 +49,7 @@ class MidiConnections extends ComponentProcess{
 	
 	initialize(){
 	
-		this.state = ComponentState.LOADING;
+		this.state = RessourceState.LOADING;
 		
 		this.graph = new MidiGraph();
 		
@@ -315,13 +315,13 @@ class MidiConnections extends ComponentProcess{
 		
 		// do not change state if currently closing 
 		// we need to keep the closing state so intance exit will not throw
-		if( this.state === ComponentState.CLOSING ) return;
+		if( this.state === RessourceState.CLOSING ) return;
 		
 		if( this.all_rules_ok ){
-			this.state = ComponentState.READY;
+			this.state = RessourceState.READY;
 		} 
 		else{
-			this.state = ComponentState.ERROR;
+			this.state = RessourceState.ERROR;
 		}
 		
 	}

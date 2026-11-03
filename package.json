@@ -1,12 +1,12 @@
 {
   "name": "scraporchestra",
-  "version": "0.1.1",
+  "version": "0.2.1",
   "description": "",
   "license": "MIT",
   "author": "Olivier Schwach",
   "type": "commonjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test \"test/*.test.js\""
   },
   "private": true,
   "workspaces": [
@@ -20,5 +20,8 @@
   },
   "exports": {
     ".": "./package.json"
+  },
+  "devDependencies": {
+    "supertest": "^7.3.1"
   }
 }

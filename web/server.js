@@ -9,26 +9,28 @@ const project_controller = require( "./controllers/project.js" );
 const components_controller = require( "./controllers/components.js" );
 const front_libs_controller = require( "./controllers/front_libs.js" );
 
-let webserver_running = false;
+const {ScrapOrchestraError} = require("../lib/errors.js");
 
 const options_template = {
 	log_requests : false,
 	log_ws_connections : false,
-	log_app_errors : true
+	log_app_errors : true,
+	log_unexpected_errors : true,
+	port : 3000
 }
 
-
-
-function startWebAppServer( application, options = options_template ){
+async function startWebAppServer( application, options = options_template ){
 	
-	if(webserver_running) return Promise.resolve();
+	options = {
+		...options_template,
+		...options,
+	};
+
+	const app = express();
+	const server = createServer(app);
+	const wss = new WebSocketServer({ server });
 	
-	return new Promise( async ( resolve, reject )=>{
-		
-		const app = express();
-		const server = createServer(app);
-		const wss = new WebSocketServer({ server });
-		
+	try{
 		wss.on('connection', function connection(ws, req) {
 			const url = new URL(req.url, "ws://base.url");
 			const { pathname } = url;
@@ -59,38 +61,115 @@ function startWebAppServer( application, options = options_template ){
 		
 		app.use( '/projects', project_controller( application, wss ) );
 		app.use( '/engine', engine_controller( application, wss ) );
-	
+
 		// this one does directory listing, hence await
 		const components_ctrler = await components_controller( application, wss );
 		app.use( '/components', components_ctrler );
-	
+
 		app.use( '/js/lib', front_libs_controller() );
 		
 		app.use( express.static(__dirname + '/public') );		
 		
+
+		// Express error handler
 		app.use((err, req, res, next) => {
-			
-			if(err instanceof Error ){
-				console.error(err);
-			} else if( options.log_app_errors ){
-				console.log("APP ERROR");
-				console.dir(err,  {depth:null});
-			}
-			
-			if(res.headerSent){
+			if (res.headersSent) {
 				return next(err);
 			}
-			
-			 res.status(500);
-			 res.send(err.message)
-		});	
-		
-		server.listen(3000, async() => {
-			webserver_running = true;
-			return resolve();
+
+			let status = 500;
+			let message = "Internal server error";
+
+			if (err instanceof ScrapOrchestraError) {
+				if (options.log_app_errors) {
+					console.error("Application error:");
+					console.dir(err, { depth: null });
+				}
+
+				message = err.message;
+
+				switch (err.code) {
+					case "INVALID_ARGUMENT":
+						status = 400;
+						break;
+
+					case "ALREADY_EXISTS":
+					case "BUSY":
+					case "NOT_INITIALIZED":
+						status = 409;
+						break;
+
+					case "NOT_FOUND":
+						status = 404;
+						break;
+
+					case "FAILED":
+						status = 500;
+						break;
+
+					default:
+						// Unknown application code
+						status = 500;
+						message = "Internal server error";
+						break;
+				}
+			} else {
+				// Unexpected programming or infrastructure error
+				if (options.log_unexpected_errors) {
+					console.error("Unexpected error:");
+					console.dir(err, { depth: null });
+				}
+			}
+
+			res.status(status).send(message);
 		});
 		
-	})
+		
+		await new Promise((resolve, reject) => {
+			server.once("error", reject);
+			server.listen(options.port, resolve);
+		});
+
+		const close = async function() {
+			// Close connected WebSocket clients first.
+			for (const client of wss.clients) {
+				client.terminate();
+			}
+
+			// Stop accepting WebSocket connections.
+			await new Promise((resolve, reject) => {
+				wss.close(err => err ? reject(err) : resolve());
+			});
+
+			// Close the HTTP server.
+			if (server.listening) {
+				await new Promise((resolve, reject) => {
+					server.close(err => err ? reject(err) : resolve());
+				});
+			}
+		  }
+
+		return { 
+			app, 
+			server, 
+			wss, 
+			close
+		};
+		
+	}
+	catch (err) {
+		for (const client of wss.clients) {
+			client.terminate();
+		}
+
+		wss.close();
+
+		if (server.listening) {
+			server.close();
+		}
+
+		throw err;
+	}
 }
 
 

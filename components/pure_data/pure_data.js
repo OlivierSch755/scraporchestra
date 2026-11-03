@@ -2,9 +2,8 @@ const path = require('node:path');
 const {spawn,exec} = require("node:child_process");
 const fs = require("node:fs/promises");
 
-const {ProjectState} = require("engine/project");
 const Dispatcher = require("engine/dispatcher");
-const {ComponentState} = require("engine/component");
+const {RessourceState} = require("engine/states");
 const {ComponentProcess} = require("engine/component/process");
 
 const {PdEditorProxy, EditorStates, stateHr } = require("./editor/pd_live_editor.js")
@@ -111,11 +110,11 @@ class PureData extends ComponentProcess{
 	*/
 	async initialize(){
 	
-		if( this.state !== ComponentState.CLOSED ){
+		if( this.state !== RessourceState.CLOSED ){
 			throw new PureDataError("Pure Data is already running or closing");
 		}
 	
-		this.state = ComponentState.LOADING;
+		this.state = RessourceState.LOADING;
 		
 		await this.verifyPdFileExists();
 		
@@ -175,7 +174,7 @@ class PureData extends ComponentProcess{
 			
 		}
 		
-		this.state = ComponentState.READY;
+		this.state = RessourceState.READY;
 	}
 
 	async open_editor(){
@@ -205,7 +204,7 @@ class PureData extends ComponentProcess{
 	async close_editor(auto_restart = true){
 		
 		if( !this.editor_open ) throw new PureDataEditorNotOpenedError("Pd editor is not running");
-		this.state = ComponentState.CLOSING;
+		this.state = RessourceState.CLOSING;
 		
 		try{
 			this.editor_backend.close();
@@ -230,9 +229,9 @@ class PureData extends ComponentProcess{
 		
 		const closeHandler = (e) =>{
 			this.instance = null;
-			if( this.state === ComponentState.CLOSING ){
+			if( this.state === RessourceState.CLOSING ){
 				
-				if(this.project.state === ProjectState.CLOSING && this.editor_open ){
+				if(this.project.state === RessourceState.CLOSING && this.editor_open ){
 					this.editor_backend.close();
 					this.editor_backend = null; 
 					this.editor_open = false;
@@ -247,7 +246,7 @@ class PureData extends ComponentProcess{
 				return;
 			}
 			
-			this.state = ComponentState.ERROR;
+			this.state = RessourceState.ERROR;
 			
 			instance.off("close", closeHandler );	
 			const err = new ComponentUnexpectedlyTerminatedError( `Component ${this.name} process should not have exited now` );

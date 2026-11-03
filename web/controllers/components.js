@@ -14,6 +14,7 @@ async function createComponentsController( application ) {
 	
 	const { projectManager, engine } = application;
 	
+	const components = await getAllComponents()
 
     const router = express.Router();
 
@@ -21,18 +22,14 @@ async function createComponentsController( application ) {
 		res.sendFile(path.join(__dirname, "../public/components.html"));
 	});
 	
-	
-	
 	router.get("/list.json", (req, res) => {
-		res.json( application.components );
+		res.json( components );
 	});
-	
-	
 	
 	// each component can have its own web controller interface
 	// that we register dynamically here 
 	
-	Object.entries( application.components ).forEach( ( [ component_name, component ] )=>{
+	Object.entries( components ).forEach( ( [ component_name, component ] )=>{
 		
 		if( component.has_web_controller !== true ) return;
 		

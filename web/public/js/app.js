@@ -4,6 +4,8 @@ import '/js/lib/alpine_global.js';
 
 import { Toaster } from '/js/services/toaster.js';
 import { wsClient } from "/js/ws_client_wrapper.js";
+import RessourceStateGlobal from '/js/lib/ressource_state.mjs';
+const States = RessourceStateGlobal.RessourceState;
 
 const project_manager_route = "/projects/api/list";
 const engine_snapshot_route = "/engine/api/snapshot";
@@ -20,18 +22,10 @@ Alpine.store('engine', {
 	
 	degraded : false,
 	project : null,
-
-
-	States : {
-		ERROR : 1,
-		LOADING : 2,
-		READY : 3,
-		CLOSING : 4,
-		CLOSED : 5
-	},
-
+	States,
+	
 	getStateHumanReadable(state){
-		const key = Object.entries(this.States).find( ([key,value]) => value === state )?.[0] ?? "N/A";
+		const key = Object.entries(States).find( ([key,value]) => value === state )?.[0] ?? "N/A";
 		return key;
 	},
 
@@ -63,14 +57,23 @@ Alpine.store('engine', {
 
 	async requestProjectClose(){
 		this.requestInProgress = true;
-		let req, data;
+		let req;
+
 		try{
 			req = await fetch("/projects/api/close", {method:"post"})
+			if(req.ok){ 
+				AppStatus.success("Project closed");
+			}
+			else {
+				const res = await req.text();
+				throw "Could not close project: " + res;
+			}
 		}
 		catch(err){
 			AppStatus.error(err);
 		}
-		// data = await req.text();
+
+
 		this.requestInProgress = false;
 	},
 
@@ -119,7 +122,7 @@ Alpine.store('project_manager', {
 		this.requestInProgress = true;
 		const project = Alpine.store("engine").project;
 		if(!project) return;
-		const save_config_route = "/projects/api/saveconfig/" + project.name;
+		const save_config_route = "/projects/api/save";
 		try{
 			const req = await fetch(save_config_route , {method : "post"});
 			if(req.ok){
@@ -136,10 +139,10 @@ Alpine.store('project_manager', {
 		this.requestInProgress = false;;
 	},
 	
-	async requestAddComponents(project,components){
+	async requestAddComponents(components){
 		this.requestInProgress = true;
 		try{
-			const req = await fetch('/projects/api/add_components/'+ project.name, {method:'post', headers: {"Content-Type": "application/json"}, body: JSON.stringify(components) });		
+			const req = await fetch('/projects/api/add_components', {method:'post', headers: {"Content-Type": "application/json"}, body: JSON.stringify(components) });		
 			if(req.ok){
 				AppStatus.success("Added Component(s)");
 			}
@@ -162,7 +165,7 @@ Alpine.store('project_manager', {
 		
 		this.requestInProgress = true;
 		try{
-			const req = await fetch('/projects/api/delete_component/'+ project.name + "/" + component.name, {method:'post'});	
+			const req = await fetch('/projects/api/delete_component/' + component.name, {method:'post'});	
 			if(req.ok){
 				AppStatus.success("Removed Component");
 			}
@@ -272,7 +275,37 @@ Alpine.store('project_manager', {
 		this.requestInProgress = false;
 	},
 
-
+	async requestUpdateAutostart(project_name){
+		
+		let clearing = false; // empty value means we want to clear the field
+		if(!project_name) clearing = true;
+		
+		this.requestInProgress = true;
+		let req;
+		try{
+			
+			if(clearing){
+				req = await fetch('/projects/api/autostart/clear', {method:'post'});	
+			}
+			else{
+				req = await fetch('/projects/api/autostart/set/'+ project_name, {method:'post'});	
+			}
+			
+			if(req.ok){ 
+				AppStatus.success("Updated project autostart");
+				await this.get_autostart();
+			}
+			else {
+				const res = await req.text();
+				throw "Could not update project autostart: " + res;
+			}
+		}
+		catch(err){
+			AppStatus.error(err);
+		}
+		
+		this.requestInProgress = false;
+	},
 
 	async ensure() {
 		if (this.loading || this.loaded) return;
@@ -285,14 +318,17 @@ Alpine.store('project_manager', {
 		this.loaded = true;
 	}, 
 	
+	async get_autostart(){
+		const auto_start_res = await fetch('/projects/api/autostart');
+		const auto_start_project_name = await auto_start_res.json();
+		this.auto_start_project = auto_start_project_name;
+	},
 	
 	async reload(){
 		this.loading = null;
 		this.loaded = false;
 		await this.ensure();
 	}
-	
-	
 	
 
 });	

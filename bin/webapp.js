@@ -2,15 +2,18 @@
 
 console.time("load dependencies");
 const path = require ("node:path");
-const fs = require ("node:fs");
+
 const {startWebAppServer} = require ("web");
 const Application = require ("engine/application");
 console.timeEnd("load dependencies");
 
+
+const scraporchestra_dir = path.join("/", "udata", "scraporchestra");
+
 const options = {
-	projects_dir : path.join("/", "udata", "scraporchestra", "projects")
+	dir : scraporchestra_dir,
 }
-fs.mkdirSync(options.projects_dir, { recursive: true });
+
 
 console.time("App Start");
 new Application(options).init().then( async ( application )=>{
