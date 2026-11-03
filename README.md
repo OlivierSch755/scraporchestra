@@ -1,7 +1,7 @@
 # ScrapOrchestra
 
 > [!CAUTION]
-> Version 0.1.1
+> Version 0.2.1
 > This is a very early alpha prototype.
 
 <hr>
@@ -109,12 +109,12 @@ As this is still a very early work in progress, build & packaging are not very s
 
 ### Requirements 
 
-* At least 400mb of disk space for a full installation
-  * ~200mb for Node.js binaries
+* At least 200mb of disk space for a full installation
   * ~50mb for ScrapOrchestra code and all optional components
   * ~50mb (temporary) to compile components
   * ~100mb more to be safe (we still need to store project data afterwards)
-* Installation requires downloading libraries and therefore requires the Raspberry Pi to have internet connection.
+* Node.js >= 18 is required (installed by default on Elk-Pi since version 1.4.0)
+* Installation requires downloading libraries and therefore requires the Raspberry Pi to have internet connection
 
 ### Preparing the Pi
 
@@ -124,39 +124,6 @@ Start by making sure disk has write access.
 ```
 sudo elk_system_utils --remount-as-rw
 ```
-
-### Installing Node.js on Elk Pi 
-
-App is written in *Node.js*, which is not found in default Elk Pi releases. 
-
-This will download Node.js binaries, 
-install them under ```/opt/node-vXX.XX.xf```
-and symlink them to ```/usr/local/bin```
-
-```sh
-# download binaries
-wget https://nodejs.org/dist/v24.19.0/node-v24.19.0-linux-arm64.tar.xz
-
-# extract binaries
-tar -xf node-v24.19.0-linux-arm64.tar.xz
-
-# move binaries
-sudo mv node-v24.19.0-linux-arm64 /opt/node-v24.19.0
-
-# create /usr/local/bin if not already there
-sudo mkdir -p /usr/local/bin
-
-# expose in path via symlink
-sudo ln -s /opt/node-v24.19.0/bin/node /usr/local/bin/node
-sudo ln -s /opt/node-v24.19.0/bin/npm /usr/local/bin/npm
-sudo ln -s /opt/node-v24.19.0/bin/npx /usr/local/bin/npx
-
-# cleanup download artefacts
-rm node-v24.19.0-linux-arm64.tar.xz
-```
-
-Version 24.19.0 happens to be the latest release at the time of writing this documentation. Anything >= 18 should work out of the box.
-
 
 ### Installing ScrapOrchestra on Elk Pi 
 
@@ -261,6 +228,8 @@ Once running, ScrapOrchestra exposes a web server on port 3000.
 That is to say, if your Elk Box IP address is ```192.168.0.1```, you can reach the web interface by opening ```http://192.168.0.1:3000``` in a web browser running on a device connected to the same network. 
 
 
+## Running tests
+A test suite is avaiable for backend basic functions. Simply run ```npm run test``` from ScrapOrchestra installation directory to run them. 
 
 ## Project & components
 
