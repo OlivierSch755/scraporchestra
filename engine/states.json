@@ -1,0 +1,7 @@
+{
+	"ERROR" : 1,
+	"LOADING" : 2,
+	"READY" : 3,
+	"CLOSING" : 4,
+	"CLOSED" : 5
+}

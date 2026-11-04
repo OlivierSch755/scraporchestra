@@ -18,7 +18,8 @@
     "./project_manager": "./project_manager.js",
     "./dispatcher": "./dispatcher.js",
     "./application": "./application.js",
-    "./states": "./states.js"
+    "./states": "./states.js",
+    "./states_json": "./states.json"
   },
   "bin" : {
 	  "cli.engine" : "./cli/engine_cli.js",

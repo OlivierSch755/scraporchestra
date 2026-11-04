@@ -38,11 +38,11 @@ class MidiConnectionsWebController extends ComponentWebController {
 		router.use( express.static( public_path ) );
 		
 		Dispatcher.on("component.midi_connections.graph", graph =>{
-			web.wssNotifyToSubscribed( "components.midi_connections.graph", graph ) 
+			web.wssBroadcast( "components.midi_connections.graph", graph ) 
 		});
 		
 		Dispatcher.on("component.midi_connections.rules", rules =>{
-			web.wssNotifyToSubscribed( "components.midi_connections.rules", rules ) 
+			web.wssBroadcast( "components.midi_connections.rules", rules ) 
 		});
 		
 	}

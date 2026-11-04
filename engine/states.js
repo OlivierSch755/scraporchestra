@@ -1,16 +1,11 @@
-const RessourceState = {
-	ERROR : 1,
-	LOADING : 2,
-	READY : 3,
-	CLOSING : 4,
-	CLOSED : 5
-}
+const ResourceState = require("./states.json");
 
 function validateState(state){
-	if( !Object.values(RessourceState).includes(state) ) throw new TypeError("Invalid RessourceState : " + state);
+	if( !Object.values(ResourceState).includes(state) ) throw new TypeError("Invalid ResourceState : " + state);
 }
 
 module.exports = {
-	RessourceState,
+	ResourceState,
+	RessourceState : ResourceState,
 	validateState
 }

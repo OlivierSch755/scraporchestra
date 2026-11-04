@@ -183,7 +183,7 @@ class MidishController extends ComponentWebController {
 		router.use( express.static( public_path ) );
 
 		Dispatcher.on("component.midish.notification", (notification) => {
-			web.wssNotifyToSubscribed( "component.midish.notification", notification ) 
+			web.wssBroadcast( "component.midish.notification", notification ) 
 		});	
 				
 				

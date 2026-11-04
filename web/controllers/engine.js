@@ -18,22 +18,20 @@ function createEngineController( application ) {
 	});
 
 	Dispatcher.on("engine.snapshot", (engine) =>{
-		web.wssNotifyToSubscribed( "engine.snapshot", engine );
+		web.wssBroadcast( "engine.snapshot", engine );
 	})
 
 	Dispatcher.on("engine.state", (state)=> {
-		web.wssNotifyToSubscribed( "engine.state", state ) 
+		web.wssBroadcast( "engine.state", state ) 
 	});
 	
 	Dispatcher.on("project.state", (state)=> {
-		web.wssNotifyToSubscribed( "project.state", state ) 
+		web.wssBroadcast( "project.state", state ) 
 	});
 	
 	Dispatcher.on("component.state", (state)=> {
-		web.wssNotifyToSubscribed( "component.state", state ) 
+		web.wssBroadcast( "component.state", state ) 
 	});
-	
-
 	
 	return router;
 }

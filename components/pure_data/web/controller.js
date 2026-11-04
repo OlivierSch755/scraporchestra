@@ -70,7 +70,7 @@ class PureDataWebController extends ComponentWebController {
 		router.use( express.static( public_path ) );
 		
 		Dispatcher.on("component.pd.editor", state =>{
-			web.wssNotifyToSubscribed( "component.pd.editor", state ) 
+			web.wssBroadcast( "component.pd.editor", state ) 
 		});
 		
 	}

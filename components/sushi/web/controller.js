@@ -51,7 +51,7 @@ class SushiWebController extends ComponentWebController {
 		router.use( express.static( public_path ) );
 		
 		Dispatcher.on("component.sushi.editor", state => {
-			web.wssNotifyToSubscribed( "component.sushi.editor", state ) 
+			web.wssBroadcast( "component.sushi.editor", state ) 
 		});
 		
 	}

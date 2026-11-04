@@ -12,8 +12,8 @@ const front_libs_controller = require( "./controllers/front_libs.js" );
 const {ScrapOrchestraError} = require("../lib/errors.js");
 
 const options_template = {
-	log_requests : false,
-	log_ws_connections : false,
+	log_requests : true,
+	log_ws_connections : true,
 	log_app_errors : true,
 	log_unexpected_errors : true,
 	port : 3000
@@ -34,20 +34,18 @@ async function startWebAppServer( application, options = options_template ){
 		wss.on('connection', function connection(ws, req) {
 			const url = new URL(req.url, "ws://base.url");
 			const { pathname } = url;
-			const subscriptions = Object.keys( Object.fromEntries(url.searchParams) ); 
-			
-			ws.context = {pathname, subscriptions}
+			// Attach original path to ws instace, so components can use them by path.
+			ws.context = {pathname}
 			if(options.log_ws_connections){ 
-				console.log("ws connected",  ws.context )
-				ws.once("close", ()=>console.log("ws disconnected",  ws.context) )
+				console.log("ws connected");
+				ws.once("close", ()=>console.log("ws disconnected") );
 			}
 		});
 		
 		application.web = { 
 			server, 
 			wss, 
-			wssRouteBroadcast : wssRouteBroadcast.bind(wss), 
-			wssNotifyToSubscribed : wssNotifyToSubscribed.bind(wss), 
+			wssBroadcast : wssBroadcast.bind(wss), 
 		}
 		
 		if(options.log_requests){
@@ -172,36 +170,16 @@ async function startWebAppServer( application, options = options_template ){
 	}
 }
 
-
-function wssRouteBroadcast(route,data, options = undefined){
-	
-	this.clients.forEach( client => {
-		if (
-			client.readyState === WebSocket.OPEN 
-			&& client.context.pathname === route
-		){
-			client.send(data, options);
-		}
-	});
-	
-}
-
-function wssNotifyToSubscribed( notification_type ,data, options = undefined){
-	
+function wssBroadcast( notification_type ,data, options = undefined){
 	const message = {
 		notif : notification_type,
 		data
 	}
-	
 	this.clients.forEach( client => {
-		if (
-			client.readyState === WebSocket.OPEN 
-			&& client.context.subscriptions.some( sub => sub === notification_type)
-		){
+		if (client.readyState === WebSocket.OPEN ){
 			client.send(JSON.stringify(message), options);
 		}
 	});
-	
 }
 
 

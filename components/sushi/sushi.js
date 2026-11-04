@@ -7,7 +7,7 @@ const {unary, getGrpcClient} =  require("./utils/grpc_helpers.js");
 
 const protobuf = require("protobufjs");
 const grpc = require("@grpc/grpc-js");
-const {AsyncValidator} = require("./editor/lib/async_validation.js");
+const { AsyncValidator } = require("./lib/async_validation.js");
 
 const Dispatcher = require("engine/dispatcher");
 
@@ -194,7 +194,7 @@ class Sushi extends ComponentProcess{
 			// restore external data if we have some
 			
 			try{
-				await SaveRestoreHookExec.onSessionRestore(client, proto, session, this.session_bin_path + ".external.json");
+				// await SaveRestoreHookExec.onSessionRestore(client, proto, session, this.session_bin_path + ".external.json");
 			}
 			catch(err){
 				console.warn("error while restoring external data in session", err)
@@ -226,14 +226,13 @@ class Sushi extends ComponentProcess{
 			// '--log-level',"debug"
 		];
 		
-		
 		// This shows copy/pastable cmd that was used to spawn sushi when called
-		this._debug_string = (()=>{
+		this._debug_string = ( ()=>{
 			let txt = Sushi.bin;
 			let args = "";
 			spawn_args.forEach(arg=> args += ( " " + arg ));
 			return txt + args
-		})();
+		} )();
 		
 		this.instance = spawn( Sushi.bin, spawn_args, { env : this.env } );
 		
@@ -269,16 +268,10 @@ class Sushi extends ComponentProcess{
 		if(this.editor_open) throw new SushiEditorAlreadyOpenedError("Sushi editor is already running");
 		this.editor_open = true;
 		
-		const editor_module = require("./editor/sushi_live_editor.js");
+		const editor_module = require("./webui_launcher.js");
 		
 		try{
-			this.editor_backend = editor_module.startSushiWebEditorBackend(proto , wss );
-			
-			this.editor_backend.proxy.once("error", (err)=>{
-				this.state = RessourceState.ERROR;
-			})
-			
-			await this.editor_backend.proxy.connect();
+			this.editor_backend = editor_module.startSushiEditorBackend();
 			Dispatcher.emit("component.sushi.editor", true );
 		}
 		catch(err){
