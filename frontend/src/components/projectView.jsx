@@ -4,17 +4,14 @@ import { toast } from 'sonner';
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 
-
 import { StateDisplayer } from './stateDisplayer.jsx';
-import * as Project from '../services/project.js';
+import * as Project from '@/lib/project.js';
 import { MidishWidget } from "./sc_components/midish.jsx";
 import { SushiWidget } from "./sc_components/sushi.jsx";
-
 
 export function ProjectView({project}){
 
 	const [editingComponent, setEditingComponent] = useState(null);
-
 
 	function handleClose() {
 		const promise = Project.close();
