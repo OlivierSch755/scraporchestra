@@ -148,3 +148,9 @@ components/midish/third_party/
 components/pure_data/install/
 components/pure_data/third_party/
 components/midi_connections/bin/
+
+# Frontend build
+web/public
+
+# Debug timings.txt from Sushi
+timings.txt
