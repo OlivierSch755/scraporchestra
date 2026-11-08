@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from 'sonner';
 
 import {
   Dialog,
@@ -6,6 +7,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog"
 
 import {
@@ -141,103 +143,106 @@ export function SushiConfigurator({config}){
 					</DialogHeader>
 					
 					<DialogDescription>
-						Parameters below let you edit how ScrapOrchestra will launch Sushi. 
-						Changing anything will require restarting Sushi to take effect.
-						This is most commonly done by reopening the project.
+						How ScrapOrchestra will launch Sushi. 
 					</DialogDescription>
-					
-					
-					{/*
-						Form inside dialog
-						It would be nice to split this in separate react components.
-					*/}
-					<form className="flex flex-col gap-6" onSubmit={onSubmit} >
-
-						{/*Edit env variables*/}
-						<FieldSet className="w-full max-w-none gap-4">
-						
-							<FieldLegend>Environment variables</FieldLegend>
-							
-							<FieldDescription>
-								Edit ENV to help Sushi locate plugins or to pass default values to plugins that support it. 
-							</FieldDescription>
-							
-							<div className="grid grid-cols-[1fr_3fr_auto] gap-2 items-end">
-								<FieldLabel id="sushi-env-key-label">Key</FieldLabel>
-								<FieldLabel id="sushi-env-val-label">Value</FieldLabel>
-								<span />
-							</div>
-							
-							{envRows.map( row => (
-								<div key={row.id} className="grid grid-cols-[1fr_3fr_auto] gap-2 items-end">
-								
-									<Field>
-										<Input 
-											aria-labelledby="sushi-env-key-label"
-											type="text" 
-											placeholder="Value" 
-											value={row.key} 
-											onChange={e => updateEnvRow(row.id, "key", e.target.value) }
-										/>	
-									</Field>
-									<Field>
-										<Input 
-										    aria-labelledby="sushi-env-val-label"
-											type="text" 
-											placeholder="Value" 
-											value={row.value} 
-											onChange={e => updateEnvRow(row.id, "value", e.target.value) }
-										/>
-									</Field>
-									
-									<Button
-										type="button"
-										variant="destructive"
-										size="icon"
-										onClick={() => removeEnvRow(row.id)}
-									>
-										X
-									</Button>
-
-								</div>
-							))}
-							
-							<Button type="button" onClick={addEnvRow}>Add ENV entry</Button>
-							
-						</FieldSet>
-						
-						{/*Edit Audio driver*/}
-						<FieldSet className="w-full max-w-none gap-4">
-						
-							<FieldLegend>Audio Driver</FieldLegend>
-							
-							<FieldDescription>
-								Which audio driver should be requested when spawning Sushi. 
-								RASPA offers real-time performance with supported audio HATs. 
-								Jack or portaudio can be usefull to work with a USB soundcard and external softwares (but this will increase latency).
-							</FieldDescription>
-
-							<Field>
-								<Combobox items={drivers}>
-									<ComboboxInput placeholder="Select a driver" />
-									<ComboboxContent>
-										<ComboboxList>
-											{(item) => (
-												<ComboboxItem key={item} value={item}>
-													{item}
-												</ComboboxItem>
-										)}
-										</ComboboxList>
-									</ComboboxContent>
-								</Combobox>
-							</Field>
-						</FieldSet>
-						
-						<footer className="border-t pt-4">
-							<Button type="submit" className="w-full">Update Sushi configuration</Button>
-						</footer>
-					</form>
 				
+				
+					<form onSubmit={onSubmit} >
+						<div className="-mx-4 no-scrollbar max-h-[50dvh] overflow-y-auto px-4 flex flex-col gap-6">
+					
+						{/*
+							Form inside dialog
+							It would be nice to split this in separate react components.
+						*/}
+						
+
+							{/*Edit env variables*/}
+							<FieldSet className="w-full max-w-none gap-4">
+							
+								<FieldLegend>Environment variables</FieldLegend>
+								
+								<FieldDescription>
+									Edit ENV to help Sushi locate plugins or to pass default values to plugins that support it. 
+								</FieldDescription>
+								
+								<div className="grid grid-cols-[1fr_3fr_auto] gap-2 items-end">
+									<FieldLabel id="sushi-env-key-label">Key</FieldLabel>
+									<FieldLabel id="sushi-env-val-label">Value</FieldLabel>
+									<span />
+								</div>
+								
+								{envRows.map( row => (
+									<div key={row.id} className="grid grid-cols-[1fr_3fr_auto] gap-2 items-end">
+									
+										<Field>
+											<Input 
+												aria-labelledby="sushi-env-key-label"
+												type="text" 
+												placeholder="Value" 
+												value={row.key} 
+												onChange={e => updateEnvRow(row.id, "key", e.target.value) }
+											/>	
+										</Field>
+										<Field>
+											<Input 
+												aria-labelledby="sushi-env-val-label"
+												type="text" 
+												placeholder="Value" 
+												value={row.value} 
+												onChange={e => updateEnvRow(row.id, "value", e.target.value) }
+											/>
+										</Field>
+										
+										<Button
+											type="button"
+											variant="destructive"
+											size="icon"
+											onClick={() => removeEnvRow(row.id)}
+										>
+											X
+										</Button>
+
+									</div>
+								))}
+								
+								<Button type="button" onClick={addEnvRow}>Add ENV entry</Button>
+								
+							</FieldSet>
+							
+							{/*Edit Audio driver*/}
+							<FieldSet className="w-full max-w-none gap-4">
+							
+								<FieldLegend>Audio Driver</FieldLegend>
+								
+								<FieldDescription>
+									Which audio driver should be requested when spawning Sushi. 
+									RASPA offers real-time performance with supported audio HATs. 
+									Jack or portaudio can be usefull to work with a USB soundcard and external softwares (but this will increase latency).
+								</FieldDescription>
+
+								<Field>
+									<Combobox items={drivers}>
+										<ComboboxInput placeholder="Select a driver" />
+										<ComboboxContent>
+											<ComboboxList>
+												{(item) => (
+													<ComboboxItem key={item} value={item}>
+														{item}
+													</ComboboxItem>
+											)}
+											</ComboboxList>
+										</ComboboxContent>
+									</Combobox>
+								</Field>
+							</FieldSet>
+							
+						</div>
+					</form>
+					
+				   <DialogFooter>
+					  <Button onClick={onSubmit} className="w-full">Update Sushi configuration</Button>
+					</DialogFooter>
+					
 				</DialogContent>
 			</Dialog>
 		
