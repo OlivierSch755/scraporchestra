@@ -1,16 +1,15 @@
 const path = require('node:path');
-const {spawn,exec} = require("node:child_process");
 const fs = require("node:fs/promises");
 const { tmpdir } = require('node:os');
-
+const {spawn} = require('node:child_process')
 const { once } = require('node:events');
 
 // const {ProjectState} = require("engine/project");
 const Dispatcher = require("engine/dispatcher");
 const {RessourceState} = require("engine/states");
-const {ComponentProcess} = require("engine/component/process");
+const {Component} = require("engine/component");
 
-const MidishController = require("./MidishController.js")
+const {MidishController} = require("./controller/controller.js")
 
 const {
 	ComponentError,
@@ -26,12 +25,11 @@ const session_filename = "midish_session.msh";
 class MidishError { constructor(message){ this.message = message } }
 
 
-class Midish extends ComponentProcess{
+class Midish extends Component{
 	
 	static has_web_controller = true;
 	
 	static get_default_config =()=> ( { slave:false, loop : false } );
-	
 	
 	static bin = path.join(__dirname, 'bin', 'midish') ;
 	static bridge_bin = path.join(__dirname, 'bin', 'midish-bridge') ;
@@ -39,9 +37,6 @@ class Midish extends ComponentProcess{
 	constructor( config, project ){
 		
 		super(project); // will populate this.project 
-		
-		this.mclkDevId = config?.mclkDevId;
-		
 		this.config = config;
 		
 		// this is really hacky. 
@@ -51,16 +46,8 @@ class Midish extends ComponentProcess{
 			return this.config
 		};
 		
-		
 		this.session_path = path.join(project.dir, session_filename);
-		
-		
 	}
-	
-	async saveProjectSession(){
-		await this.controller.saveSession(this.session_path);
-	}
-	
 	
 	async hasSession(){	
 		try {
@@ -74,12 +61,10 @@ class Midish extends ComponentProcess{
 	
 
 	async importMidiFileFromBuffer( buffer ){
-		
 		const dir_path = await fs.mkdtemp( path.join(tmpdir(), "midish" + '-') );
 		const file_path = path.join(dir_path, "file.mid");
 		await fs.writeFile( file_path, buffer);
-		await this.controller.importMidiFile( file_path );
-		
+		await this.controller.sessionController.importMidiFile( file_path );
 	}
 	
 
@@ -104,18 +89,12 @@ class Midish extends ComponentProcess{
 	}
 	*/
 	async initialize(){
+
 	
 		this.state = RessourceState.LOADING;
 		this.has_session = await this.hasSession();
 		
-		const spawn_args = ["-v"];
-		
-		// spawn midish
-		this.instance = spawn( Midish.bin, spawn_args );
-
-		this.handleClose(this.instance);
-		this.handleError(this.instance);
-		
+	
 		// spawn alsa bridge to have a stable port
 		this.bridge_instance = spawn( Midish.bridge_bin);
 		
@@ -123,64 +102,105 @@ class Midish extends ComponentProcess{
 			this.state = RessourceState.ERROR;
 		})
 		
-		const midishController = new MidishController();
 		
-		midishController.on("notification", (notification)=>{
-			Dispatcher.emit("component.midish.notification", notification );
-		})
+		// spawn midish process with  its protocol implementation wrapper
+		this.controller = new MidishController();
+		MidishController.bin = Midish.bin;
+		await this.controller.init();
 		
-		midishController.on("config_update", (callback)=>{
-			callback(this.config);
-		})
-		
-		const readyPromise =  once(midishController, "ready");
-		midishController.attachToInstance(this.instance);
-		await readyPromise;
-		
-		
-		this.controller = midishController;
 		
 		if( this.has_session ){
-			await new Promise(r => setTimeout(r, 0));
+			// await new Promise(resolve => setTimeout(resolve, 0));
 			try{
-				await this.controller.loadSession(this.session_path, true);
+				console.log("restoring session");
+				await this.controller.sessionController.loadSession(this.session_path, true);
+				console.log("ok")
 			}
 			catch(err){
+						console.log("error while restoring session", err);
 				this.session_restore_failed = err.message;
 			}
 		}
 		else {
-			await this.controller.initNewSession();
+			// await this.controller.initNewSession();
 		}
-		
-		await this.controller.initDevices(this.config);
-
-		
-		this.controller.initialized = true;
-		await this.controller.notifySessionChange();
-		
 		this.state = RessourceState.READY;
 	}
 
 	async close(){
+		
+		let bridgeError;
+		let controllerError;
+		
+		let timeout;
+		
+		
 		if (this.bridge_instance && this.bridge_instance.exitCode === null && !this.bridge_instance.killed) {
-			try{
+
+			// close midish bridge
+			try {
+				const close_promise = once(this.bridge_instance, "close")  ;
 				this.bridge_instance.kill();
-				await once(this.bridge_instance, "close");
+				
+				await Promise.race([
+					close_promise,
+					new Promise((_, reject) => {
+						timeout = setTimeout(() => {
+							reject(new Error("TIMEOUT: Midish Bridge could not be closed within a reasonable delay"));
+						}, 1000);
+					})
+				]);
 			}
-			catch(err){
-				err2 = new ComponentNotProperlyClosedError( `Could not kill process spawned by component ${this.name} (...suspect)` );
-				err2.cause = err;
-				console.error(err2);
+			catch (err) {
+				bridgeError = new ComponentNotProperlyClosedError(
+					`Could not kill process Midish Bridge (...dangerous)`,
+					{ cause: err }
+				);
+			}
+			finally {
+				clearTimeout(timeout);
 			}
 		}
-		await super.close();
+		// close midish runtime
+		try {
+			await Promise.race([
+				this.controller.close,
+				new Promise((_, reject) => {
+					timeout = setTimeout(() => {
+						reject(new Error("TIMEOUT: Midish Controller could not be closed within a reasonable delay"));
+					}, 1000);
+				})
+			]);
+		}
+		catch (err) {
+			controllerError = new ComponentNotProperlyClosedError(
+				`Could not kill Midish Controller (...dangerous)`,
+				{ cause: err }
+			);
+		}
+		finally {
+			clearTimeout(timeout);
+		}
+		
+		if (bridgeError && controllerError) {
+			throw new AggregateError(
+				[bridgeError, controllerError],
+				`Multiple errors occurred while closing component Midish`
+			);
+		}
+
+		if (bridgeError) throw bridgeError;
+		if (controllerError) throw controllerError;
+
 	}
 	
 	toJSON(){
+		
 		const data = super.toJSON();
 		data.has_session = this.has_session;
 		data.session_restore_failed = this.session_restore_failed;
+		data.transport = this?.controller?.transport;
+		data.session = this?.controller?.session;
 		return data;
 	}
 	

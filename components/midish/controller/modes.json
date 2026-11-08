@@ -1,0 +1,10 @@
+{
+	"STOP" : 0,
+	"IDLE" : 1,
+	"PLAY" : 2,
+	"RECORD" : 3,
+	"0" : "STOP",
+	"1" : "IDLE",
+	"2" : "PLAY",
+	"3" : "RECORD"
+}

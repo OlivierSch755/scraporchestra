@@ -8,7 +8,7 @@ LDLIBS := $(shell pkg-config --libs alsa)
 TARGET := bin/midish-bridge
 SRC := src/bridge.c
 
-MIDISH_VERSION := 1.4.1
+MIDISH_VERSION := 1.5.0
 MIDISH_URL := https://midish.org/midish-$(MIDISH_VERSION).tar.gz
 
 DEPS := third_party
