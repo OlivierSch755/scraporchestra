@@ -1,6 +1,5 @@
 const {spawn} = require("node:child_process");
 
-
 const sushiWebUiBin = "/usr/bin/sushi-webui";
 
 function startSushiEditorBackend( options = {} ){
