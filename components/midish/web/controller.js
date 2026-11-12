@@ -33,50 +33,52 @@ class MidishController extends ComponentWebController {
 		router.get("/file/midi.json", async (req, res) => {
 			const data = await this.instance.getCurrentMidiFileData();
 			res.json(data);
-		
 		});
 		
-		router.post("/api/seek/:bar", async (req, res) => {
-			await this.instance.controller?.goToMeasure(req.params.bar);
+		router.post("/api/transport/seek/:measure", async (req, res) => {
+			const measure = Number(req.params.measure);
+			await this.instance.controller.transportController.seek(measure);
 			res.sendStatus(200);
 		});
 		
-		router.post("/api/select/:length", async (req, res) => {
-			await this.instance.controller?.setSelectLength(req.params.length);
+		router.post("/api/transport/tempo_factor/:factor", async (req, res) => {
+			await this.instance.controller?.transportController.setTempoFactor( req.params.factor );
 			res.sendStatus(200);
 		});
 		
-		router.post("/api/fac/:length", async (req, res) => {
-			await this.instance.controller?.setTempoFactor(req.params.length);
+		// router.post("/api/select/:length", async (req, res) => {
+			// await this.instance.controller?.setSelectLength(req.params.length);
+			// res.sendStatus(200);
+		// });
+		
+		// transport API
+		router.post("/api/transport/play", async (req, res) => {
+			await this.instance.controller.transportController.userPlay();
 			res.sendStatus(200);
 		});
 		
-		
-		router.post("/api/play", async (req, res) => {
-			await this.instance.controller?.play();
+		router.post("/api/transport/stop", async (req, res) => {
+			await this.instance.controller.transportController.userStop();
 			res.sendStatus(200);
 		});
 		
-		router.post("/api/stop", async (req, res) => {
-			await this.instance.controller?.stop();
+		router.post("/api/transport/record", async (req, res) => {
+			await this.instance.controller.transportController.userRecord();
 			res.sendStatus(200);
 		});
 		
-		router.post("/api/metronome", async (req, res) => {
-			await this.instance.controller?.setMetronome(req.body);
+		router.post("/api/transport/idle", async (req, res) => {
+			await this.instance.controller.transportController.userIdle();
 			res.sendStatus(200);
 		});
 		
-		router.post("/api/mute/:track_name/:mute_state_str", async (req, res) => {
-			
-			const {mute_state_str, track_name} = req.params
-			const mute_state = ( mute_state_str === "1" );
-			
-			await this.instance.controller?.toggleMute(track_name, mute_state );
-			res.sendStatus(200);
-		});
+		// router.post("/api/metronome", async (req, res) => {
+			// await this.instance.controller?.setMetronome(req.body);
+			// res.sendStatus(200);
+		// });
 		
-		router.post("/api/loop/:loop_mode_str", async (req, res) => {
+		
+		router.post("/api/transport/loop/:loop_mode_str", async (req, res) => {
 			
 			const {loop_mode_str} = req.params
 			const loop_mode = ( loop_mode_str === "1" );
@@ -84,7 +86,17 @@ class MidishController extends ComponentWebController {
 			await this.instance.controller?.toogleLoop(loop_mode );
 			res.sendStatus(200);
 		});
+			
 		
+		router.post("/api/mute/:track_name/:mute_state_str", async (req, res) => {
+			
+			const {mute_state_str, track_name} = req.params
+			const mute_state = ( mute_state_str === "1" );
+			
+			await this.instance.controller?.trackController.toggleMute(track_name, mute_state );
+			res.sendStatus(200);
+		});
+
 		
 		router.post( "/api/tapev" , async (req, res) => {
 			const {ev,enabled} = req.body
@@ -105,12 +117,10 @@ class MidishController extends ComponentWebController {
 			res.sendStatus( 200 );
 		});
 		
-		
 		router.get("/api/session.json", async (req, res) => {
 			const data = await this.instance.controller?.getSessionData();
 			res.json(data);
 		});
-		
 		
 		router.post("/api/slave/:mode", async (req, res) => {
 			const slave = req.params.mode === "1"
@@ -182,8 +192,16 @@ class MidishController extends ComponentWebController {
 				
 		router.use( express.static( public_path ) );
 
-		Dispatcher.on("component.midish.notification", (notification) => {
-			web.wssBroadcast( "component.midish.notification", notification ) 
+		Dispatcher.on("component.midish.transport", (notification) => {
+			web.wssBroadcast( "component.midish.transport", notification ) 
+		});	
+				
+		Dispatcher.on("component.midish.position", (notification) => {
+			web.wssBroadcast( "component.midish.position", notification ) 
+		});	
+				
+		Dispatcher.on("component.midish.session", (notification) => {
+			web.wssBroadcast( "component.midish.session", notification ) 
 		});	
 				
 				

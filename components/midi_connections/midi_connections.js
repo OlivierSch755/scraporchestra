@@ -29,8 +29,8 @@ class MidiConnections extends ComponentProcess{
 	static bin = path.resolve( path.join( __dirname, "bin", "alsa_watch" ) );
 	
 	
-	constructor( config, project ){
-		super( config, project ); // will populate this.project and this.config
+	constructor( config, project, name ){
+		super( config, project, name ); // will populate this.project and this.config
 		
 		if(config?.rules){
 			this.rules = config.rules.map( raw_rule => Rule.fromJSON( raw_rule ) )

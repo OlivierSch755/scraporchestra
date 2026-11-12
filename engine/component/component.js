@@ -1,4 +1,4 @@
-const Dispatcher = require("../dispatcher.js");
+const { DataSection } = require("engine/data_section");
 
 const {
 	ComponentError,
@@ -12,7 +12,7 @@ function random_wait(){
 	});
 }
 
-const {RessourceState,validateState} = require("../states.js");
+const {ResourceState,validateState} = require("../states.js");
 
 class Component {
 	
@@ -49,12 +49,10 @@ class Component {
 		return true;
 	}
 
-	
-	
 	project;
 	config;
 	name;
-	_state = RessourceState.CLOSED;
+	_state = ResourceState.CLOSED;
 	
 	get state(){
 		return this._state;
@@ -63,30 +61,35 @@ class Component {
 	set state(state){
 		validateState(state)
 		this._state = state;
-		Dispatcher.emit("component.state", {name : this.name, state} )
+		this.status_api.state = state;
+		this.status_api.increaseRevision();
+		this.status_api.notifyChange();
 	}
 	
 	toJSON(){
-		const {name, state} = this;
-		return {name, state};
+		const {name, status_api} = this;
+		return {name, state : status_api};
+		
+		
 	}
 	
-	constructor( config = {}, project ){
+	constructor( config = {}, project, name ){
 		this.project = project;
 		this.config = config;
-		this.name = new.target.name;
+		this.name = name || new.target.name;
+		this.status_api = new DataSection("component", "state", {name : this.name, state : this.state});
 	}
 	
 	async initialize(){
-		this.state = RessourceState.LOADING;
+		this.state = ResourceState.LOADING;
 		// spawn process and await until ready
 		// await random_wait();
 		
-		this.state = RessourceState.READY;
+		this.state = ResourceState.READY;
 	}
 	
 	async close(){
-		this.state = RessourceState.CLOSING;
+		this.state = ResourceState.CLOSING;
 		let err2;
 		// Free ressources 
 		try{
@@ -97,16 +100,15 @@ class Component {
 		}
 		
 		if(err2){
-			this.state = RessourceState.ERROR;
+			this.state = ResourceState.ERROR;
 			throw err2;
 		}
 		
-		this.state = RessourceState.CLOSED;
+		this.state = ResourceState.CLOSED;
 	}
 	
-	
 	async saveProjectSession(){
-		if(this.state !== RessourceState.READY){
+		if(this.state !== ResourceState.READY){
 			throw new ComponentError("Will not save a component that has not explicitely succeeded in loading.");
 		}
 	}
@@ -117,7 +119,7 @@ function gracefulComponentClose(component_name, component_instance){
 	return component_instance.close().catch(err => {
 		// flag component instance as in error state if it exists at this point
 		if(component_instance){
-			component_instance.state = RessourceState.ERROR;
+			component_instance.state = ResourceState.ERROR;
 		}
 		const component_error = new ComponentNotProperlyClosedError();
 		component_error.component_name = component_name;

@@ -94,8 +94,6 @@ class Engine {
 			);
 		}
 		
-		
-		
 		try{
 			// dispatch snapshot (what is being loaded)
 			Dispatcher.emit("engine.snapshot", this);

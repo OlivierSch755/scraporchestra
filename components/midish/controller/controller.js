@@ -1,41 +1,17 @@
 const {spawn} = require("node:child_process");
 const Dispatcher = require("engine/dispatcher");
 
+const { DataSection } = require("engine/data_section");
 const { MidishProtocol } = require("./protocol.js");
 const { TrackController } = require("./trackController.js");
 const { SessionController } = require("./sessionController.js");
 const { TransportController, MidishPosition } = require("./transportController.js");
 
+
+
+const dispatch_path = "component.midish";
 const MODES = require("./modes.json");
 
-class DataSection{
-	
-	#rev;
-	#name = null; 
-	
-	constructor( name, default_values = {}  ){
-		this.#rev = 0;
-		this.#name = name;
-		Object.assign(this, default_values);
-	}
-	
-	get rev(){
-		return this.#rev;
-	}
-	
-	increaseRevision(){
-		this.#rev++;
-	}
-	
-	notifyChange(){
-		// console.log(`component.midish.${this.#name}`, message)
-		Dispatcher.emit(`component.midish.${this.#name}`, this);
-	}
-	
-	toJSON(){
-		return Object.assign( {rev : this.#rev}, this );
-	}
-}
 
 class MidishController{
 	
@@ -46,7 +22,8 @@ class MidishController{
 		this.initialized = false;
 		this.disposed = false;
 				
-		this.session =  new DataSection ( 
+		this.session =  new DataSection (
+			dispatch_path,
 			"session",
 			{
 				tracks: [],
@@ -57,12 +34,20 @@ class MidishController{
 		);
 		
         this.transport = new DataSection ( 
+			dispatch_path,
 			"transport",
 			{
 				mode: MODES.STOP,
 				loop: null,
 				slave: null,
-				position : new MidishPosition()
+				tempo_factor: 100,
+				position : new DataSection(
+					dispatch_path,
+					"position",
+					{
+						position : new MidishPosition()
+					}
+				)
 			}
 		);
 
@@ -101,7 +86,17 @@ class MidishController{
 			this.#_onPositionEvent = this.transportController.onPositionEvent.bind(this.transportController);
 			
 			this.midishProcess.on("pos" , this.#_onPositionEvent );
+			
+			
+			
+			
+			
 			await this.sessionController.refreshSessionUnsafe();
+			
+			await this.transportController.init();
+			await this.initDevices();
+			await this.initNewSession();
+
 			this.initialized = true;
 		
 		}
@@ -161,6 +156,18 @@ class MidishController{
 
 		return run;
 	}
+	
+	async initDevices(config){
+		await this.midishProcess.sendCommand(`dnew 0 "Midish-Transport:2" wo`);
+		await this.midishProcess.sendCommand(`dnew 1 "Midish-Transport:3" ro`);
+		// await this.setSlaveMode( (config.slave ?? false ) );
+		// await this.toogleLoop( (config.loop ?? false ) );
+	}
+	async initNewSession(){
+		// await this.midishProcess.sendCommand(`fnew default`);
+		// await this.midishProcess.sendCommand(`fmap { any {1 0..15} } { any {0 0..15} }`);
+	}
+
 	
 }
 

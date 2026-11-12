@@ -4,8 +4,6 @@ const { tmpdir } = require('node:os');
 const {spawn} = require('node:child_process')
 const { once } = require('node:events');
 
-// const {ProjectState} = require("engine/project");
-const Dispatcher = require("engine/dispatcher");
 const {RessourceState} = require("engine/states");
 const {Component} = require("engine/component");
 
@@ -22,9 +20,6 @@ const {
 
 const session_filename = "midish_session.msh";
 
-class MidishError { constructor(message){ this.message = message } }
-
-
 class Midish extends Component{
 	
 	static has_web_controller = true;
@@ -34,18 +29,10 @@ class Midish extends Component{
 	static bin = path.join(__dirname, 'bin', 'midish') ;
 	static bridge_bin = path.join(__dirname, 'bin', 'midish-bridge') ;
 	
-	constructor( config, project ){
+	constructor( config, project, name ){
 		
-		super(project); // will populate this.project 
+		super(project, config, name); // will populate this.project 
 		this.config = config;
-		
-		// this is really hacky. 
-		// write this.config when project tries to JSON.stringify project config object
-		// will do for now
-		config.toJSON = ()=>{
-			return this.config
-		};
-		
 		this.session_path = path.join(project.dir, session_filename);
 	}
 	
@@ -90,7 +77,6 @@ class Midish extends Component{
 	*/
 	async initialize(){
 
-	
 		this.state = RessourceState.LOADING;
 		this.has_session = await this.hasSession();
 		
@@ -110,7 +96,6 @@ class Midish extends Component{
 		
 		
 		if( this.has_session ){
-			// await new Promise(resolve => setTimeout(resolve, 0));
 			try{
 				console.log("restoring session");
 				await this.controller.sessionController.loadSession(this.session_path, true);
@@ -128,6 +113,8 @@ class Midish extends Component{
 	}
 
 	async close(){
+		
+		this.state = RessourceState.CLOSING;
 		
 		let bridgeError;
 		let controllerError;
@@ -164,7 +151,7 @@ class Midish extends Component{
 		// close midish runtime
 		try {
 			await Promise.race([
-				this.controller.close,
+				this.controller.close(),
 				new Promise((_, reject) => {
 					timeout = setTimeout(() => {
 						reject(new Error("TIMEOUT: Midish Controller could not be closed within a reasonable delay"));
@@ -180,6 +167,7 @@ class Midish extends Component{
 		}
 		finally {
 			clearTimeout(timeout);
+			this.state = RessourceState.CLOSED;
 		}
 		
 		if (bridgeError && controllerError) {
@@ -193,6 +181,12 @@ class Midish extends Component{
 		if (controllerError) throw controllerError;
 
 	}
+	
+	async saveProjectSession(){
+		await this.controller.saveSession(this.session_path);
+	}
+	
+	
 	
 	toJSON(){
 		

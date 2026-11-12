@@ -1,11 +1,19 @@
+const Dispatcher = require("./dispatcher");
+
+const separator = ".";
+
 class DataSection{
 	
 	#rev;
 	#name = null; 
+	#prefix = "";
+	#path = "";
 	
-	constructor( name, default_values = {}  ){
-		this.#rev = 0;
+	constructor( prefix, name, default_values = {}, rev = 0 ){
+		this.#rev = rev;
 		this.#name = name;
+		this.#prefix = prefix;
+		this.#path = `${this.#prefix}${separator}${this.#name}`;
 		Object.assign(this, default_values);
 	}
 	
@@ -18,10 +26,8 @@ class DataSection{
 	}
 	
 	notifyChange(){
-		// console.log(`component.midish.${this.#name}`, JSON.parse(JSON.stringify(this)))
-		
-		Dispatcher.emit(`component.midish.${this.#name}`, this);
-	
+		// console.log(this.#path,this)
+		Dispatcher.emit(this.#path,this);
 	}
 	
 	toJSON(){

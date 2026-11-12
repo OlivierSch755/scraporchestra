@@ -148,11 +148,6 @@ function SelectProjectAutoStartBtnDialog({projects}){
 		promise.then(loadAutoStartData);
 	}
 	
-	
-	if(error){
-		return(<div>Error, could not load autostart</div>)
-	}
-	
 	function onClear(){
 		const project_name = currentAutostart;
 		const promise = Project.clearAutostart();
@@ -172,6 +167,15 @@ function SelectProjectAutoStartBtnDialog({projects}){
 		<>
 			<Button variant="outline" onClick={()=>setOpen(true)}>Autostart</Button>
 			<Dialog open={open} onOpenChange={setOpen}>
+			
+				{error && (
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>Error, could not load autostart</DialogTitle>
+						</DialogHeader>
+					</DialogContent>
+				)}
+				
 				{isLoading && (
 					<DialogContent>
 						<DialogHeader>
@@ -180,13 +184,13 @@ function SelectProjectAutoStartBtnDialog({projects}){
 					</DialogContent>
 				)}
 				
-				{!isLoading && (
+				{!error && !isLoading && (
 					<DialogContent>
 						<DialogHeader>
 							<DialogTitle>Select a project to start with application</DialogTitle>
 						</DialogHeader>
 						
-						<form onSubmit={onSubmit}>
+						<form onSubmit={onSubmit} className="grid gap-6">
 							<Combobox 
 								items={projects} 
 								value={currentAutostart}
@@ -205,28 +209,17 @@ function SelectProjectAutoStartBtnDialog({projects}){
 							  </ComboboxContent>
 							</Combobox>
 							
-							<div className="flex justify-end gap-2 mt-4">
-							
+							<ButtonGroup className="justify-self-end">
 								<Button type="button" onClick={onClear} disabled={!originalAutostart} >
 									Clear Autostart
 								</Button>
-							
 								<Button type="submit" disabled={!currentAutostart || !currentAutostart?.trim() || currentAutostart === originalAutostart } >
 									Confirm
 								</Button>
-							</div>
+							</ButtonGroup>
 							
 						</form>
-						<div className="flex justify-end gap-2 mt-4">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={()=>setOpen(false)}
-							>
-								Back
-							</Button>	
-						</div>
-						
+		
 					</DialogContent>
 				)}
 			

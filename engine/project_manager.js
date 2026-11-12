@@ -248,6 +248,9 @@ class ProjectManager {
 		// need to test this
 		delete require.cache[ path_to_config ];
 		
+		console.dir(project_config, {depth:null})
+		
+		
 		await fs.writeFile( 
 			path.join( path_to_config ),
 			JSON.stringify(project_config)

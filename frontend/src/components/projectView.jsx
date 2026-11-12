@@ -8,9 +8,16 @@ import { StateDisplayer } from './stateDisplayer.jsx';
 import * as Project from '@/lib/project.js';
 import { MidishWidget } from "./sc_components/midish.jsx";
 import { SushiWidget } from "./sc_components/sushi.jsx";
+import { useEngineStore }  from "@/services/engine";
 
-export function ProjectView({project}){
 
+
+export function ProjectView(){
+
+    const project = useEngineStore(
+        (state) => state.engine?.project
+    );
+	
 	const [editingComponent, setEditingComponent] = useState(null);
 
 	function handleClose() {
@@ -40,18 +47,25 @@ export function ProjectView({project}){
     // Component definitions
     const components = [
         {
+            id: 'sushi',
+            name: 'DSP',
+            config: project.config.components.sushi,
+            component: project.components.sushi,
+            Widget: SushiWidget,
+        },
+        {
             id: 'midish',
-            name: 'Midish',
+            name: 'MIDI transport',
             config: project.config.components.midish,
             component: project.components.midish,
             Widget: MidishWidget,
         },
         {
-            id: 'sushi',
-            name: 'Sushi',
-            config: project.config.components.sushi,
-            component: project.components.sushi,
-            Widget: SushiWidget,
+            id: 'midi_connections',
+            name: 'MIDI routing',
+            config: project.config.components.midi_connections,
+            component: project.components.midi_connections,
+            Widget: ()=> null,
         },
     ].filter(({ config }) => config);
 
@@ -64,7 +78,7 @@ export function ProjectView({project}){
 				{/* Project title and state */}
 				<h2 className="text-2xl">
 					Project <span className="font-bold">{project.name}</span>
-					<StateDisplayer state={project.state}/>
+					<StateDisplayer state={project.state.state}/>
 				</h2>
 				
 				{/* Project actions */}
@@ -74,6 +88,8 @@ export function ProjectView({project}){
 				</ButtonGroup>
 				
 			</header>
+			
+			
 			
 			
 			{/* Project components */}
@@ -92,7 +108,7 @@ export function ProjectView({project}){
 							>
 								<div>
 									<h4 className="font-semibold">{name}</h4>
-									< StateDisplayer state={component?.state} />
+									< StateDisplayer state={component?.state?.state} />
 								</div>
 
 								<Button onClick={() => setEditingComponent(id)}>

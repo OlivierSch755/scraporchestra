@@ -9,9 +9,10 @@ const protobuf = require("protobufjs");
 const grpc = require("@grpc/grpc-js");
 const { AsyncValidator } = require("./lib/async_validation.js");
 
-const Dispatcher = require("engine/dispatcher");
+const { DataSection } = require("engine/data_section");
+// const Dispatcher = require("engine/dispatcher");
 
-const {RessourceState} = require("engine/states");
+const {ResourceState} = require("engine/states");
 const {ComponentProcess} = require("engine/component/process");
 const ComponentErrors = require("engine/component/errors");
 
@@ -37,6 +38,7 @@ const SessionState = proto.lookupType("SessionState");
 const Status = proto.lookupEnum("Status").values 
 
 
+const dispatch_path = "component.sushi";
 
 // Sushi GRPC api expected version (need to confirm that even outside of editor)
 // because we need to use saveSession and RestoreSession GRPC methods
@@ -86,9 +88,9 @@ class Sushi extends ComponentProcess{
 	
 	editor_open = false;
 	
-	constructor( config, project ){
+	constructor( config, project, name ){
 		
-		super(project); // will populate this.project 
+		super(config, project, name); // will populate this.project 
 		
 		this.driver = config?.driver ?? "-r";
 		this.osc_ip = config?.osc_ip ?? "127:0:0:1";
@@ -96,17 +98,13 @@ class Sushi extends ComponentProcess{
 		
 		this.restored_session = false;
 		
-		this.project = project;
-		
 		// May not exist yet, but if we need to create / find it, this will be where the session file is to be found.
 		this.session_bin_path = path.join(this.project.dir, sushi_session_filename);
 		this.sushi_config_json_path = path.join(this.project.dir, sushi_config_filename);
 		
+		this.editor = new DataSection(dispatch_path,"editor", {enabled : false})
 		
-		this.config = config;
-		// this is really hacky. 
-		// write this.config when project tries to JSON.stringify project config object
-		// will do for now
+		// this is really hacky and a ugly workaround for the fact that we just blindly overwrite this config (without validation) from the web controller
 		config.toJSON = ()=>{
 			return this.config
 		};
@@ -185,7 +183,7 @@ class Sushi extends ComponentProcess{
 			const result = await asyncValidator.processCommandResponse(res);
 			
 			if( result.status.status !== Status.SUCCESS){
-				this.state = RessourceState.ERROR;
+				this.state = ResourceState.ERROR;
 				// cleanup, we do not want a stray GRPC stream taking resources.
 				asyncValidator.close();
 				throw new SushiEditorCannotRestoreSessionError("Cannot restore Sushi Session");
@@ -216,7 +214,7 @@ class Sushi extends ComponentProcess{
 	// Start sushi and make sure everything is ok then report
 	async initialize(){
 		
-		this.state = RessourceState.LOADING;
+		this.state = ResourceState.LOADING;
 		
 		const spawn_args = [
 			this.driver,
@@ -258,26 +256,33 @@ class Sushi extends ComponentProcess{
 		client.close();
 		
 		// error may have already happened early asynchronously in handleClose(), don't overwrite them blindly
-		if( this.state !== RessourceState.ERROR ){
-			this.state = RessourceState.READY;
+		if( this.state !== ResourceState.ERROR ){
+			this.state = ResourceState.READY;
 		}
 	}
 	
-	async open_editor( wss ){
+	async open_editor( ){
 		
-		if(this.editor_open) throw new SushiEditorAlreadyOpenedError("Sushi editor is already running");
-		this.editor_open = true;
-		
+		console.log(this.editor)
+		if(this.editor_backend) throw new SushiEditorAlreadyOpenedError("Sushi editor is already running");
+
 		const editor_module = require("./webui_launcher.js");
 		
 		try{
 			this.editor_backend = editor_module.startSushiEditorBackend();
-			Dispatcher.emit("component.sushi.editor", true );
+			this.editor.enabled = true;
+
+			
 		}
 		catch(err){
+			this.editor.enabled = false;
 			const err2 = new SushiEditorCannotOpenError("Cannot open sushi editor");
 			err2.cause = err;
 			throw err2;
+		}
+		finally{
+			this.editor.increaseRevision();
+			this.editor.notifyChange();
 		}
 		
 		/*
@@ -288,12 +293,11 @@ class Sushi extends ComponentProcess{
 	
 	close_editor(){
 		
-		if( !this.editor_open ) throw new SushiEditorNotOpenedError("Sushi editor is not running");
+		if( !this.editor_backend ) throw new SushiEditorNotOpenedError("Sushi editor is not running");
 		try{
 			this.editor_backend.close();
-			this.editor_open = false;
 			this.editor_backend = null; // allow ressources to be garbage collected
-			Dispatcher.emit("component.sushi.editor", false );
+			this.editor.enabled = false;
 		}
 		catch(err){
 			const err2 = new SushiEditorCloseError("Could not close Sushi editor properly");
@@ -301,7 +305,10 @@ class Sushi extends ComponentProcess{
 			err2.cause = err;
 			throw err2;
 		}
-		
+		finally{
+			this.editor.increaseRevision();
+			this.editor.notifyChange();
+		}
 	}
 	
 	async close(){
@@ -311,7 +318,7 @@ class Sushi extends ComponentProcess{
 	
 	toJSON(){
 		const data = super.toJSON();
-		data.editor_open = this.editor_open;
+		data.editor = this.editor;
 		return data;
 	}
 }

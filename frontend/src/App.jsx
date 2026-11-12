@@ -21,7 +21,7 @@ export default function App() {
 		main_view = <div>Error:<br/><p>{error}</p></div> ;
 	}
 	else if(engine?.project){
-		main_view = <ProjectView project={engine.project} />;
+		main_view = <ProjectView/>;
 	}
 	else{
 		main_view = <ProjectList/>
@@ -31,7 +31,6 @@ export default function App() {
 	return (
 		<>
 		<main className="m-2">
-			<h1 className="text-3xl font-bold">ScrapOrchestra</h1>
 			{main_view}
 		</main>
 		<Toaster />

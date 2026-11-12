@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { toast } from 'sonner';
 import ResourceState from 'engine/states_json';
 
@@ -32,8 +32,7 @@ async function stopSushiEditor() {
 
 function SushiWebEditor({component}){
 	
-	
-	if(!component) return null;
+	if(!component?.editor) return null;
 	
 	function onStart(e) {
 		const promise = startSushiEditor();
@@ -78,20 +77,20 @@ function SushiWebEditor({component}){
 		
 			<header className="flex justify-between p-2 items-center">
 			
-				{ component.editor_open ? "Editor is online " : "Editor is offline " }
+				{ component.editor.enabled ? "Editor is online " : "Editor is offline " }
 				
 				<ButtonGroup>
 				
-					{ component.editor_open &&  <Button className="pointer-fine:hidden" onClick={openFullscreen}> Go fullscreen</Button> }
+					{ component.editor.enabled &&  <Button className="pointer-fine:hidden" onClick={openFullscreen}> Go fullscreen</Button> }
 					
-					<Button onClick={ component.editor_open ? onStop : onStart } >
-						{ component.editor_open ? "Disable" : "Enable" }
+					<Button onClick={ component.editor.enabled ? onStop : onStart } >
+						{ component.editor.enabled ? "Disable" : "Enable" }
 					</Button>
 				</ButtonGroup>
 				
 			</header>
 			
-			{ component.editor_open &&  
+			{ component.editor.enabled &&  
 				<div className="w-full min-h-[400px] h-[50dvh] resize-y overflow-auto [@media(pointer:coarse)]:h-0 @media(pointer:coarse)]:w-0" >
 					<iframe 
 						ref={iframeRef}
@@ -105,7 +104,7 @@ function SushiWebEditor({component}){
 	);
 }
 
-export function SushiWidget() {
+export const  SushiWidget = memo( ()=> {
 	
     const component = useEngineStore(
         (state) => state.engine?.project?.components?.sushi
@@ -121,4 +120,4 @@ export function SushiWidget() {
 			<SushiWebEditor component={component} />
 		</div>
 	)
-}
+});

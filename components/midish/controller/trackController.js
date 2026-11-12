@@ -36,6 +36,30 @@ class TrackController extends MidishSubController{
 		});
 	}
 
+	async toggleMute( track_name, mute_state ){
+		
+		return this.enqueueOperation(async () => {
+			
+			const track = this.session.tracks.find( ({name})=> name === track_name );
+			
+			if (!track) {
+				throw new TypeError("Unknown track: " + track_name);
+			}
+			
+			if(mute_state){
+				await this.sendCheckedCommand(`mute ${track.name}`); 
+			}
+			else {
+				await this.sendCheckedCommand(`unmute ${track.name}`); 
+			}
+			
+			return await this.refreshSessionUnsafe();
+			
+		});
+		
+	}
+
+
 }
 
 module.exports = {TrackController}

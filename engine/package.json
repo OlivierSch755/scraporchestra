@@ -19,7 +19,7 @@
     "./dispatcher": "./dispatcher.js",
     "./application": "./application.js",
     "./states": "./states.js",
-    "./states_json": "./states.json"
+    "./states_json": "./states.json",
     "./data_section": "./data_section.js"
   },
   "bin" : {

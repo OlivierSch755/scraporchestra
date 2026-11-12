@@ -2,11 +2,12 @@ const path  = require('node:path');
 const fs = require('node:fs/promises');
 const os = require("node:os");
 
+const { DataSection } = require("./data_section.js");
 const {Component, gracefulComponentClose} = require("./component/component.js");
 const {lookupComponent} = require("./component/utils.js");
 const ComponentErrors = require("./component/errors.js");
 
-const {RessourceState,validateState} = require("./states.js");
+const {ResourceState,validateState} = require("./states.js");
 const {ScrapOrchestraError} = require("../lib/errors.js");
 
 const Dispatcher = require("./dispatcher.js");
@@ -32,7 +33,7 @@ class CannotInitializeProjectNowError extends ScrapOrchestraError {
 
 class Project {
 	
-	_state = RessourceState.CLOSED;
+	_state = ResourceState.CLOSED;
 	
 	name;
 	config;
@@ -55,14 +56,18 @@ class Project {
 	
 	set state(state){
 		validateState(state);
-		Dispatcher.emit("project.state",  state )
 		this._state = state;
+		this.status_api.state = state;
+		this.status_api.increaseRevision();
+		this.status_api.notifyChange();
 	}
 	
 	constructor( abs_path_to_project_dir){
 		this.name = path.basename( abs_path_to_project_dir );
 		this.save_dir = abs_path_to_project_dir; // real path to saved data
 		this.dir // used by components to load their own data (temporary directory)
+		
+		this.status_api = new DataSection("project","state", {state : this.state});
 		this.initialized = false;
 		this.components = {};
 		this.componentRuntimeStateChangeHandler = this.componentRuntimeStateChangeHandler.bind(this); // cb for component state change
@@ -93,9 +98,7 @@ class Project {
 			// get component class definition (will throw if not found or invalid)
 			let component_class = lookupComponent(component_name);
 			// instantiate it
-			let component = new component_class( component_config, this );
-			component.name = component_name;
-			
+			let component = new component_class( component_config, this, component_name );
 			this.components[component_name] = component;
 			
 		});
@@ -108,6 +111,7 @@ class Project {
 					await component.initialize()
 				}
 				catch(err){
+					component.state = ResourceState.ERROR;
 					throw new ComponentInitError(
 						`Failed to initialize component ${component.name}`,
 						{ cause : err}
@@ -122,30 +126,30 @@ class Project {
 	componentRuntimeStateChangeHandler(){
 		
 		// If any component is in error state, then whole project inherits error state
-		const has_error = Object.values( this.components ).some( component => component.state === RessourceState.ERROR );
-		const still_loading =  Object.values( this.components ).some( component => component.state === RessourceState.LOADING );
+		const has_error = Object.values( this.components ).some( component => component.state === ResourceState.ERROR );
+		const still_loading =  Object.values( this.components ).some( component => component.state === ResourceState.LOADING );
 		
 		if( has_error && !still_loading ){
-			this.state = RessourceState.ERROR;
+			this.state = ResourceState.ERROR;
 			return;
 		}
 		
 		// If all component is in ready state, then whole project also becomes ready
-		const all_open = Object.values( this.components ).every( component => component.state === RessourceState.READY );
+		const all_open = Object.values( this.components ).every( component => component.state === ResourceState.READY );
 		
 		if( all_open ){
-			this.state = RessourceState.READY;
+			this.state = ResourceState.READY;
 			return;
 		}
 		
 	}
 	
 	async initialize(){
-		if(  this.state !== RessourceState.CLOSED ) {
+		if(  this.state !== ResourceState.CLOSED ) {
 			throw new CannotInitializeProjectNowError();
 		}
 		
-		this.state = RessourceState.LOADING;
+		this.state = ResourceState.LOADING;
 		
 		// create a temporary directory to hold runtime modification to project
 		this.dir = await fs.mkdtemp(
@@ -167,13 +171,13 @@ class Project {
 			
 			// flag project as ready if there are no components to load
 			if(Object.values( this.components ).length === 0){
-				this.state = RessourceState.READY;
+				this.state = ResourceState.READY;
 				return;
 			}
 			
 		}
 		catch(err){
-			this.state = RessourceState.ERROR;
+			this.state = ResourceState.ERROR;
 			throw err;
 		}
 		finally{
@@ -185,7 +189,7 @@ class Project {
 		if( this.initialized === false ) {
 			throw new ProjectNotOpenedError("Cannot close a project that has not been initialized");
 		}
-		this.state = RessourceState.CLOSING;
+		this.state = ResourceState.CLOSING;
 		
 		await fs.rm(this.dir, {
 			recursive: true,
@@ -213,7 +217,7 @@ class Project {
 		// Because such errors are only dangerous in that they may cause issue in next project load,
 		// and making sure system is safe for loading next project is the Engine's job, not the Project session.
 		// So project does not care about close error and can be considered as closed even if everything went wrong before.
-		this.state = RessourceState.CLOSED;
+		this.state = ResourceState.CLOSED;
 		
 
 		if(close_errors.length){
@@ -279,7 +283,7 @@ class Project {
 		catch(err){
 			let component = this.components[component_name];
 			if(component){
-				component.state = RessourceState.ERROR;
+				component.state = ResourceState.ERROR;
 			}
 			throw err;
 		}
@@ -314,7 +318,7 @@ class Project {
 	}
 	
 	toJSON(){
-		const {name, state, config, components} = this;
+		const {name, status_api : state, config, components} = this;
 		return {name, state, config, components}
 	}
 	

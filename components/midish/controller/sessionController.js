@@ -152,6 +152,12 @@ class SessionController extends MidishSubController{
 			await this.refreshSessionUnsafe();
 		} )
 	}
+		
+	async saveSession(session_filepath){
+		return this.enqueueOperation( async ()=>{ 
+			await this.sendCheckedCommand(`save "${session_filepath}"`);
+		} )
+	}
 	
 }
 

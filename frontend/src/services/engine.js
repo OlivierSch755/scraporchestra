@@ -8,12 +8,65 @@ function SushiNotificationHandler(component, notification){
 	}
 	
 	switch (notification.notif) {
-		case 'component.sushi.editor':
+		
+		case 'component.sushi.editor': {
+			
+			// if(notification.data.rev <= component.editor.rev){
+				// return component
+			// }
 			const next_component = {
 				...component,
-				editor_open : notification.data
+				editor : notification.data
 			}
 			return next_component;
+		}
+	}
+	
+	return component;
+}
+
+function MidishNotificationHandler(component, notification){
+	
+	if (!component || !notification) {
+		return component;
+	}
+	switch (notification.notif) {
+		
+		case 'component.midish.transport':{
+		
+			if(component.transport?.rev && notification.data.rev <= component.transport.rev ) return;
+		
+			const next_component = {
+				...component,
+				transport : notification.data
+			}
+			return next_component;
+		}	
+		
+		case 'component.midish.position':{
+		
+			if(component.transport?.position?.rev && notification.data.rev <= component.transport.position.rev ) return;
+		
+			const next_component = {
+				...component,
+				transport : {
+					...component.transport,
+					position : notification.data
+				}
+			}
+			return next_component;
+		}		
+		
+		case 'component.midish.session':{
+		
+			if(component.session?.rev  && notification.data.rev <= component.session.rev ) return;
+		
+			const next_component = {
+				...component,
+				session : notification.data
+			}
+			return next_component;
+		}
 	}
 	
 	return component;
@@ -25,7 +78,7 @@ function applyNotification(engine, notification) {
 		return engine;
 	}
 
-	// console.log(notification)
+	console.log(notification)
 
 	switch (notification.notif) {
 		
@@ -35,7 +88,7 @@ function applyNotification(engine, notification) {
 		case 'project.state': {
 			
 			const project = engine.project;
-			if(!project) return engine;
+			if(!project || notification.data.rev <= project.state.rev ) return engine;
 			
 			return {
 				...engine,
@@ -49,7 +102,8 @@ function applyNotification(engine, notification) {
 			
 		case 'component.state': {
 			
-			const {name,state} = notification.data ?? {};
+			const state_update = notification.data ?? {};
+			const {name} = state_update;
 			const components = engine.project?.components;
 		
 			if (!components) {
@@ -57,13 +111,19 @@ function applyNotification(engine, notification) {
 			}
 			
 			let next_component
+			
 			if( !Object.hasOwn(components, name) ){
-				next_component = {state}
+				next_component = {state : state_update}
+				console.warn("pre-init component", name, state_update)
+			}
+			else if(notification.data.rev <= components[name].rev ){
+				console.warn("skipped notification", notification, components[name] )
+				return engine;
 			}
 			else{
 				next_component = {
 					...components[name],
-					state,
+					state : state_update,
 				}
 			}
 			
@@ -94,6 +154,25 @@ function applyNotification(engine, notification) {
 				components: {
 					...engine.project.components,
 					sushi : next_sushi,
+				},
+			},
+		};
+	}
+	
+	if(notification.notif.startsWith("component.midish")){
+		
+		const components = engine.project?.components;
+		let midish = components?.midish;
+		if(!midish) return engine;
+		const next_midish = MidishNotificationHandler( midish ,notification);
+		if(!next_midish) return engine;
+		return {
+			...engine,
+			project: {
+				...engine.project,
+				components: {
+					...engine.project.components,
+					midish : next_midish,
 				},
 			},
 		};

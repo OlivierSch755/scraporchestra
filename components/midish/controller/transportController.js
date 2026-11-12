@@ -10,10 +10,20 @@ class MidishPosition{
 
 const MODES = MidishSubController.MODES;
 
+function assertValidMeasureValue(measure){
+	if(measure < 0  || Number.isSafeInteger(measure) === false ){
+		throw new Error("Invalid measure: "+ measure);
+	}
+}
+
 class TransportController extends MidishSubController{
 	
 	get transportData(){
 		return this.controller.transport;
+	}	
+	
+	get positionData(){
+		return this.controller.transport.position;
 	}
 	
 	async loopSection( start, end ){
@@ -81,6 +91,39 @@ class TransportController extends MidishSubController{
 	async userIdle(){
 		return this.#userSwitchPlayingMode(MODES.IDLE);
 	}
+		
+	async userIdle(){
+		return this.#userSwitchPlayingMode(MODES.IDLE);
+	}
+	
+			
+	async seek(measure){
+		assertValidMeasureValue(measure);
+		return this.enqueueOperation( async () => { 
+			await this.sendCheckedCommand(`g ${measure}`); 
+		});
+	}
+	
+	async setTempoFactor( factor ){
+		return this.enqueueOperation( async () => { 
+			await this.sendCheckedCommand(`fac ${factor}`);
+			await this.#getTempoFactor();
+			this.transportData.increaseRevision();
+			this.transportData.notifyChange();
+		})
+	}
+			
+	async init(){
+		this.#getTempoFactor();
+	}	
+		
+	async #getTempoFactor(){
+		const res = await this.sendCommand(`getfac`);
+		let factor = Number(res.data);
+		factor = parseInt(10_000 / factor); // see https://github.com/ratchov/midish/issues/3
+		this.transportData.tempo_factor = factor;
+	}	
+	
 	
 	async #userSwitchPlayingMode( mode ){
 		await this.#switchPlayingMode(mode);
@@ -99,13 +142,12 @@ class TransportController extends MidishSubController{
 			return;
 		}
 		
-		this.transportData.position = Object.assign(new MidishPosition(), position);
-		this.transportData.increaseRevision();
-		this.transportData.notifyChange();
+		this.positionData.position = Object.assign(new MidishPosition(), position);
+		this.positionData.increaseRevision();
+		this.positionData.notifyChange();
 	}
 	
-	
-	
+
 }
 
 module.exports = {TransportController, MidishPosition}
