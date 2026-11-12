@@ -95,12 +95,13 @@ function NewProjectModalBtnDialog({onReload}){
 	)
 }
 
-function SelectProjectAutoStartBtnDialog({projects,onReload}){
+function SelectProjectAutoStartBtnDialog({projects}){
 	
-	const [projectAutostartModalOpen, setProjectAutostartModalOpen] = useState(false);
+	const [open, setOpen] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState(null);
 	const [currentAutostart, setCurrentAutostart] = useState(null);
+	const [originalAutostart, setOriginalAutostart] = useState(null);
 	
 	async function loadAutoStartData( abortController = {signal : null} ){
 		
@@ -111,6 +112,7 @@ function SelectProjectAutoStartBtnDialog({projects,onReload}){
 				signal: abortController?.signal
 			});
 			setCurrentAutostart(data);
+			setOriginalAutostart(data);
 		} catch (err) {
 			if (err.name === 'AbortError') return;
 			setError(err.message);
@@ -123,13 +125,13 @@ function SelectProjectAutoStartBtnDialog({projects,onReload}){
 	
 	// Fetch current autostarting project
 	useEffect(() => {
-		if(!projectAutostartModalOpen) return;
+		if(!open) return;
 		const abortController = new AbortController();
 		loadAutoStartData(abortController);
 		return () => {
 			abortController.abort();
 		};
-	}, [projectAutostartModalOpen]);
+	}, [open]);
 	
 	function onSubmit(e) {
 		e.preventDefault();
@@ -143,7 +145,7 @@ function SelectProjectAutoStartBtnDialog({projects,onReload}){
 				description: err.message,
 			}),
 		});
-		promise.then(onReload);
+		promise.then(loadAutoStartData);
 	}
 	
 	
@@ -151,11 +153,25 @@ function SelectProjectAutoStartBtnDialog({projects,onReload}){
 		return(<div>Error, could not load autostart</div>)
 	}
 	
+	function onClear(){
+		const project_name = currentAutostart;
+		const promise = Project.clearAutostart();
+		toast.promise(promise, {
+			loading: `Clearing autostart`,
+			success: `Autostart cleared`,
+			error: (err) => ({
+				message: `Could not clear autostart`,
+				description: err.message,
+			}),
+		});
+		promise.then(loadAutoStartData);
+	}
+	
 	
 	return (
 		<>
-			<Button variant="outline" onClick={()=>setProjectAutostartModalOpen(true)}>Autostart</Button>
-			<Dialog open={projectAutostartModalOpen} onOpenChange={setProjectAutostartModalOpen}>
+			<Button variant="outline" onClick={()=>setOpen(true)}>Autostart</Button>
+			<Dialog open={open} onOpenChange={setOpen}>
 				{isLoading && (
 					<DialogContent>
 						<DialogHeader>
@@ -190,20 +206,24 @@ function SelectProjectAutoStartBtnDialog({projects,onReload}){
 							</Combobox>
 							
 							<div className="flex justify-end gap-2 mt-4">
-								<Button type="submit" disabled={!currentAutostart || !currentAutostart?.trim()} >
+							
+								<Button type="button" onClick={onClear} disabled={!originalAutostart} >
+									Clear Autostart
+								</Button>
+							
+								<Button type="submit" disabled={!currentAutostart || !currentAutostart?.trim() || currentAutostart === originalAutostart } >
 									Confirm
 								</Button>
 							</div>
-							
 							
 						</form>
 						<div className="flex justify-end gap-2 mt-4">
 							<Button
 								type="button"
 								variant="outline"
-								onClick={()=>setProjectAutostartModalOpen(false)}
+								onClick={()=>setOpen(false)}
 							>
-								Cancel
+								Back
 							</Button>	
 						</div>
 						
@@ -454,7 +474,7 @@ export function ProjectList(){
 			<footer>
 				<ButtonGroup>
 					<NewProjectModalBtnDialog onReload={loadProjects} />
-					<SelectProjectAutoStartBtnDialog projects={projects} onReload={loadProjects} />
+					<SelectProjectAutoStartBtnDialog projects={projects}  />
 				</ButtonGroup>
 			</footer>
 		</section>
