@@ -26,8 +26,8 @@ class ComponentUnexpectedlyTerminatedError extends ScrapOrchestraError {
 }
 
 class ComponentNotProperlyClosedError extends ScrapOrchestraError {
-    constructor(message = "Component could not properly free its resources") {
-        super("FAILED", message);
+    constructor(message = "Component could not properly free its resources", options) {
+        super("FAILED", message, options);
     }
 }
 class ComponentInitializationError extends ScrapOrchestraError {

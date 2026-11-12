@@ -18,6 +18,15 @@ function assertValidMeasureValue(measure){
 
 class TransportController extends MidishSubController{
 	
+	
+	#onPositionEvent;
+	
+	constructor(){
+		super(...arguments);
+		this.#onPositionEvent = this.#_onPositionEvent.bind(this);
+	}
+	
+	
 	get transportData(){
 		return this.controller.transport;
 	}	
@@ -106,15 +115,23 @@ class TransportController extends MidishSubController{
 	
 	async setTempoFactor( factor ){
 		return this.enqueueOperation( async () => { 
-			await this.sendCheckedCommand(`fac ${factor}`);
-			await this.#getTempoFactor();
+			await this.#setTempoFactor(factor)
 			this.transportData.increaseRevision();
 			this.transportData.notifyChange();
 		})
 	}
+	
+	async #setTempoFactor( factor ){
+		await this.sendCheckedCommand(`fac ${factor}`);
+	}
 			
 	async init(){
-		this.#getTempoFactor();
+		const { midishProcess, config } = this.controller;
+		midishProcess.on("pos" , this.#onPositionEvent );
+		if( config.tempo_factor >= 50 &&  config.tempo_factor <= 200 ){
+			await this.#setTempoFactor(config.tempo_factor );
+		}
+		
 	}	
 		
 	async #getTempoFactor(){
@@ -132,7 +149,7 @@ class TransportController extends MidishSubController{
 		this.transportData.notifyChange();
 	}
 		
-	onPositionEvent( position ){
+	#_onPositionEvent( position ){
 		// do not propagate data we already know about
 		if( 
 			position.measure === this.transportData.position.measure 
@@ -147,6 +164,9 @@ class TransportController extends MidishSubController{
 		this.positionData.notifyChange();
 	}
 	
+	close(){
+		this.controller.midishProcess.off("pos", this.#onPositionEvent);
+	}
 
 }
 

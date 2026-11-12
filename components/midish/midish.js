@@ -90,19 +90,17 @@ class Midish extends Component{
 		
 		
 		// spawn midish process with  its protocol implementation wrapper
-		this.controller = new MidishController();
-		MidishController.bin = Midish.bin;
-		await this.controller.init();
-		
+		try{
+			this.controller = new MidishController( this.config );
+			MidishController.bin = Midish.bin;
+			await this.controller.init();
+		}catch(err){console.log(err)}
 		
 		if( this.has_session ){
 			try{
-				console.log("restoring session");
 				await this.controller.sessionController.loadSession(this.session_path, true);
-				console.log("ok")
 			}
 			catch(err){
-						console.log("error while restoring session", err);
 				this.session_restore_failed = err.message;
 			}
 		}

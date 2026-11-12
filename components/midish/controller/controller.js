@@ -7,8 +7,6 @@ const { TrackController } = require("./trackController.js");
 const { SessionController } = require("./sessionController.js");
 const { TransportController, MidishPosition } = require("./transportController.js");
 
-
-
 const dispatch_path = "component.midish";
 const MODES = require("./modes.json");
 
@@ -18,7 +16,10 @@ class MidishController{
 	static bin;
 	#_onPositionEvent;
 	
-	constructor(){
+	constructor(config = {}){
+		
+		this.config = config;
+		
 		this.initialized = false;
 		this.disposed = false;
 				
@@ -83,10 +84,6 @@ class MidishController{
 				throw new Error(err);
 			})
 			
-			this.#_onPositionEvent = this.transportController.onPositionEvent.bind(this.transportController);
-			
-			this.midishProcess.on("pos" , this.#_onPositionEvent );
-			
 			
 			
 			
@@ -96,9 +93,8 @@ class MidishController{
 			await this.transportController.init();
 			await this.initDevices();
 			await this.initNewSession();
-
+			
 			this.initialized = true;
-		
 		}
 		catch(err){
 			try {
@@ -116,22 +112,27 @@ class MidishController{
 
 		if(this.disposed) return;
 		this.disposed = true;
-
-		try {
-			if(this.midishProcess){
-				this.midishProcess.off("pos", this.#_onPositionEvent);
-				await this.midishProcess.close();
-			}
+		
+		try{
+			this.transportController.close();
 		}
-		finally {
-			const child = this.child_process;
-			if (!child) return;
-
-			if (child.exitCode === null && child.signalCode === null) {
-				child.kill();
+		finally{
+			try {
+				
+				if(this.midishProcess){
+					await this.midishProcess.close();
+				}
 			}
+			finally {
+				const child = this.child_process;
+				if (!child) return;
 
-			await this.childClosePromise;
+				if (child.exitCode === null && child.signalCode === null) {
+					child.kill();
+				}
+
+				await this.childClosePromise;
+			}
 		}
 	}
 	
