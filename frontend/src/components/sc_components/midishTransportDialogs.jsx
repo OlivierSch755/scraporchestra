@@ -31,6 +31,8 @@ import {Input} from  "@/components/ui/input"
 import {Button} from  "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 
+
+
 export const MidishSeek = memo( ()=> {
 	
 	const titleRef = useRef(null);
@@ -46,14 +48,19 @@ export const MidishSeek = memo( ()=> {
 	const [measure, setMeasure] = useState( measurePosition ?? 0 );
 	const [open, setOpen] = useState(false);
 	
-	const safeSetMeasure = (val) =>{
-		val = Number(val);
-		if( val < 0 || Number.isSafeInteger(val) === false ){
-			setMeasure(0);
-			return;
-		}
-		setMeasure(val);
-	}
+	const safeSetMeasure = (val) => {
+		setMeasure(prev => {
+			const next = Number(
+				typeof val === "function" ? val(prev) : val
+			);
+
+			if (next < 0 || !Number.isSafeInteger(next)) {
+				return 0;
+			}
+
+			return next;
+		});
+	};
 	
 	async function onSubmit(e){
 		e.preventDefault();
@@ -105,11 +112,11 @@ export const MidishSeek = memo( ()=> {
 									className="col-span-4"
 								/>
 								
-								<Button type="button" onClick={e=>safeSetMeasure(measure-5)}>-5</Button>
-								<Button type="button" onClick={e=>safeSetMeasure(measure-1)}>-1</Button>
+								<Button type="button" onClick={e=>safeSetMeasure( v => v - 5 )}>-5</Button>
+								<Button type="button" onClick={e=>safeSetMeasure( v => v - 1 )}>-1</Button>
+								<Button type="button" onClick={e=>safeSetMeasure( v => v + 1 )}>+1</Button>
+								<Button type="button" onClick={e=>safeSetMeasure( v => v + 5 )}>+5</Button>
 								
-								<Button type="button" onClick={e=>safeSetMeasure(measure+1)}>+1</Button>
-								<Button type="button" onClick={e=>safeSetMeasure(measure+5)}>+5</Button>
 							</div>
 						</Field>
 					</form>
@@ -149,21 +156,22 @@ export const MidishTempoFactor = memo( ({transport}) => {
 	}
 	
 	const safeSetTempoFactor = (val) =>{
+		setTempo( prev => {
+			
+			const next = Number ( typeof val === "function" ? val(prev) : val );
+			if( Number.isSafeInteger(next) === false ){
+				return 100;
+			}
+			if( next < 50 ){
+				return 50;
+			}
+			if( next > 200 ){
+				return 200;
+			}	
+			return next;
+		})
 		
-		val = Number(val);
-		if( Number.isSafeInteger(val) === false ){
-			setTempo(100);
-			return;
-		}
-		if( val < 50 ){
-			setTempo(50);
-			return;
-		}
-		if( val > 200 ){
-			setTempo(200);
-			return;
-		}
-		setTempo(val);
+
 	}
 	
 	return (
@@ -172,7 +180,9 @@ export const MidishTempoFactor = memo( ({transport}) => {
 				setOpen(true)
 				setTempo(transport.tempo_factor ?? 100);
 			} }>
-				{ `${transport.tempo_factor} %` }
+				<small>Tempo</small>
+				{transport.tempo_factor}
+				%
 			</Button>
 					
 			{/*Dialog*/}
@@ -200,11 +210,11 @@ export const MidishTempoFactor = memo( ({transport}) => {
 									className="col-span-4"
 								/>
 								
-								<Button type="button" onClick={e=>safeSetTempoFactor(tempo-5)}>-5</Button>
-								<Button type="button" onClick={e=>safeSetTempoFactor(tempo-1)}>-1</Button>
+								<Button type="button" onClick={e=>safeSetTempoFactor( v => v - 5 )}>-5</Button>
+								<Button type="button" onClick={e=>safeSetTempoFactor( v => v - 1 )}>-1</Button>
 								
-								<Button type="button" onClick={e=>safeSetTempoFactor(tempo+1)}>+1</Button>
-								<Button type="button" onClick={e=>safeSetTempoFactor(tempo+5)}>+5</Button>
+								<Button type="button" onClick={e=>safeSetTempoFactor( v => v + 1 )}>+1</Button>
+								<Button type="button" onClick={e=>safeSetTempoFactor( v => v + 5 )}>+5</Button>
 							</div>
 						</Field>
 					</form>

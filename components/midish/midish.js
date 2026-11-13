@@ -181,7 +181,7 @@ class Midish extends Component{
 	}
 	
 	async saveProjectSession(){
-		await this.controller.saveSession(this.session_path);
+		await this.controller.sessionController.saveSession(this.session_path);
 	}
 	
 	

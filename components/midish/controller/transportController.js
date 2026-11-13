@@ -145,7 +145,8 @@ class TransportController extends MidishSubController{
 		}
 		
 	}	
-		
+	
+	// unused
 	async #getTempoFactor(){
 		const res = await this.sendCheckedCommand(`getfac`);
 		/*
