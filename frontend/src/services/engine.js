@@ -74,11 +74,9 @@ function MidishNotificationHandler(component, notification){
 
 function applyNotification(engine, notification) {
 
-	if (!engine || !notification) {
+	if (!notification || !engine) {
 		return engine;
 	}
-
-	console.log(notification)
 
 	switch (notification.notif) {
 		
@@ -182,26 +180,23 @@ function applyNotification(engine, notification) {
 }
 
 export const useEngineStore = create((set) => ({
+	
 	engine: null,
-	isLoading: true,
-	error: null,
+	initialized: false,
+	socketState : "disconnected",
 
-	setSnapshot: (snapshot) =>
-		set({
-			engine: snapshot,
-			isLoading: false,
-			error: null,
-		}),
+	setSocketState: (socketState) => set((state) => ({
+		socketState,
+		initialized: socketState === "connected"
+			? state.initialized
+			: false
+	})),
+	
+    setSnapshot: (engine) => set({
+        engine,
+        initialized: true
+    }),
 
-	setLoading: (isLoading) => set({
-		isLoading
-	}),
-
-	setError: (error) =>
-		set({
-			error,
-			isLoading: false,
-		}),
 
 	applyNotification: (notification) =>
 		set((current) => {
@@ -219,121 +214,143 @@ export const useEngineStore = create((set) => ({
 				engine: nextEngine
 			};
 		}),
+
 }));
 
 export function useEngineSync() {
 	
+	const setSocketState = useEngineStore(
+		(state) => state.setSocketState
+	);
+
 	const setSnapshot = useEngineStore(
 		(state) => state.setSnapshot
 	);
-
-	const setLoading = useEngineStore(
-		(state) => state.setLoading
-	);
-
-	const setError = useEngineStore(
-		(state) => state.setError
-	);
-
+	
 	const applyNotification = useEngineStore(
 		(state) => state.applyNotification
 	);
 
+
 	useEffect(() => {
 		
-		const controller = new AbortController();
-
-		let disposed = false;
-		let initialized = false;
-
-		// Preserve messages received while the initial HTTP
-		// snapshot is being fetched (chances of multiple devices/users are low, but not zero...)
-		const pendingNotifications = [];
-
-		setLoading(true);
-
-		const protocol =
-			window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-
-		const socket = new WebSocket(
-			`${protocol}//${window.location.host}/ws`
-		);
-
-		socket.addEventListener('open', () => {
-			console.info('WebSocket connected');
-		});
-
-		socket.addEventListener('message', (event) => {
-			let notification;
+	
+		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+		const ws_url = `${protocol}//${window.location.host}/ws`;
+			
+		const onMessage = (event) => {
+			
+			let message;
 			try {
-				notification = JSON.parse(event.data);
+				message = JSON.parse(event.data);
 			} catch (error) {
-				console.error('Invalid WebSocket message:', error);
+				console.error('Invalid WebSocket message:', error, event.data);
 				return;
 			}
-
-			if (!notification || typeof notification.notif !== 'string') {
-				console.warn('Unexpected WebSocket message:', notification);
+			if (!message || typeof message.notif !== 'string') {
+				console.warn('Unexpected WebSocket message:', event.data );
 				return;
 			}
+			
+			if (message.notif === "engine.snapshot") {
+				setSnapshot(message.data);
+				return;
+			}
+			
+			const initialized = useEngineStore.getState().initialized;
 
 			if (!initialized) {
-				pendingNotifications.push(notification);
+				console.warn("Ignoring notification before snapshot:", message);
 				return;
 			}
-
-			applyNotification(notification);
-		});
-
-		socket.addEventListener('error', (event) => {
-			console.error('WebSocket error:', event);
-		});
-
-		socket.addEventListener('close', () => {
-			console.info('WebSocket disconnected');
-		});
-
-		async function initialize() {
-			try {
-				const response = await fetch('/engine/api/snapshot', {
-					signal: controller.signal,
-				});
-
-				if (!response.ok) {
-					throw new Error(
-						`Failed to fetch engine state: HTTP ${response.status}`
-					);
-				}
-
-				const snapshot = await response.json();
-
-				if (disposed) return;
-
-				setSnapshot(snapshot);
-
-				// Apply updates received while the HTTP request was pending.
-				for (const notification of pendingNotifications) {
-					applyNotification(notification);
-				}
-
-				pendingNotifications.length = 0;
-				initialized = true;
-			} catch (error) {
-				if (error.name === 'AbortError' || disposed) {
-					return;
-				}
-
-				setError(error.message);
-			}
+			
+			applyNotification(message);
 		}
-
-		initialize();
+			
+		const onWsStateChange = (state)=>{
+			setSocketState(state)
+		}
+			
+		const socket = new ReconnectionManager(ws_url, {onMessage, onStateChange : onWsStateChange} );
 
 		return () => {
-			disposed = true;
-			controller.abort();
-			socket.close();
+			socket?.dispose();
 		};
-	}, [setSnapshot, setLoading, setError, applyNotification]);
+	}, [setSocketState, applyNotification, setSnapshot]);
 
+}
+
+function createBackoff({ base = 500, max = 30000, jitter = true } = {}) {
+	let attempt = 0;
+
+	return {
+		next() {
+			const exponential = Math.min(base * Math.pow(2, attempt), max);
+			const delay = jitter
+				? exponential * (0.5 + Math.random() * 0.5)
+				: exponential;
+			attempt++;
+			return Math.floor(delay);
+		},
+		reset() {
+			attempt = 0;
+		},
+	};
+}
+
+class ReconnectionManager {
+	
+	constructor(url, {onMessage,onStateChange}) {
+		this.url = url;
+		this.onMessage = onMessage;
+		this.onStateChange = onStateChange;
+		this.backoff = createBackoff();
+		this.maxRetries = 12;
+		this.retryCount = 0;
+		this.connect();
+	}
+	connect() {
+		if (this.disposed) return;
+		this.ws = new WebSocket(this.url);
+		this.onStateChange?.("connecting");
+
+		this.ws.onerror = (event) => {
+			console.error("WebSocket error:", event);
+		};
+
+		this.ws.onopen = () => {
+			this.backoff.reset();
+			this.retryCount = 0;
+			this.onStateChange?.("connected");
+		};
+
+		this.ws.onmessage = (event) => {
+			this.onMessage?.(event);
+		};
+
+		this.ws.onclose = (event) => {
+			if (event.code === 1000) {
+				this.onStateChange?.("disconnected");
+				return;
+			}
+			this.scheduleReconnect();
+		};
+	}
+	scheduleReconnect() {
+		if (this.disposed) return;
+		if (this.retryCount >= this.maxRetries) {
+			this.onStateChange?.("disconnected");
+			return;
+		}
+		this.retryCount++;
+		this.onStateChange?.("reconnecting");
+		this.reconnectTimer = setTimeout(() => this.connect(), this.backoff.next());
+	}
+	
+	dispose() {
+		this.disposed = true;
+		clearTimeout(this.reconnectTimer);
+		this.ws?.close(1000, "Component disposed");
+	}
+	
 }

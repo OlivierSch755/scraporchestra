@@ -8,14 +8,14 @@ function createEngineController( application ) {
 	
     const router = express.Router();
 
-	router.get( "/api/snapshot" , (req, res) => {
-		res.set({
-			"Cache-Control": "no-store",
-			"Pragma": "no-cache",   
-			"Expires": "0"
-		});
-		res.json( engine );
-	});
+	// router.get( "/api/snapshot" , (req, res) => {
+		// res.set({
+			// "Cache-Control": "no-store",
+			// "Pragma": "no-cache",   
+			// "Expires": "0"
+		// });
+		// res.json( engine );
+	// });
 
 	Dispatcher.on("engine.snapshot", (engine) =>{
 		web.wssBroadcast( "engine.snapshot", engine );

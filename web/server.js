@@ -37,9 +37,19 @@ async function startWebAppServer( application, options = options_template ){
 			// Attach original path to ws instace, so components can use them by path.
 			ws.context = {pathname}
 			if(options.log_ws_connections){ 
-				console.log("ws connected");
 				ws.once("close", ()=>console.log("ws disconnected") );
+				console.log("ws connected", pathname );
 			}
+			
+			if(pathname === "/ws"){
+				console.log("sending snapshot")
+				wssSend( ws,  {
+					notif : "engine.snapshot",
+					data : application.engine
+				});
+			}
+			
+			
 		});
 		
 		application.web = { 
@@ -176,12 +186,15 @@ function wssBroadcast( notification_type ,data, options = undefined){
 		data
 	}
 	this.clients.forEach( client => {
-		if (client.readyState === WebSocket.OPEN ){
-			client.send(JSON.stringify(message), options);
-		}
+		wssSend(client, message, options);
 	});
 }
 
+function wssSend(client, message, options = undefined ){
+	if (client.readyState === WebSocket.OPEN ){
+		client.send(JSON.stringify(message), options);
+	}
+}
 
 module.exports = { startWebAppServer };
 
