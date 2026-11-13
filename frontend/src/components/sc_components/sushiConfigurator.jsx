@@ -63,6 +63,8 @@ export function SushiConfigurator({config}){
 	
 	if(!config) return null;
 	
+	const titleRef = useRef(null);
+	
 	const [open, setOpen] = useState(false);
 	const [oscIp, setOscIp] = useState(config.osc_ip ?? "");
 
@@ -136,10 +138,10 @@ export function SushiConfigurator({config}){
 			
 			{/*Dialog*/}
 			<Dialog open={open} onOpenChange={setOpen} >
-				<DialogContent className="sm:max-w-3xl">
+				<DialogContent className="sm:max-w-3xl" initialFocus={titleRef}>
 				
 					<DialogHeader>
-						<DialogTitle>Sushi configuration</DialogTitle>
+						<DialogTitle tabIndex={-1} ref={titleRef}>Sushi startup configuration</DialogTitle>
 					</DialogHeader>
 					
 					<DialogDescription>
