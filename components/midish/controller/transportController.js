@@ -139,6 +139,7 @@ class TransportController extends MidishSubController{
 		midishProcess.on("pos" , this.#onPositionEvent );
 		if( config.tempo_factor >= 50 &&  config.tempo_factor <= 200 ){
 			await this.#setTempoFactor(config.tempo_factor );
+			this.transportData.tempo_factor = config.tempo_factor;
 		}
 		else{
 			config.tempo_factor = 100;
