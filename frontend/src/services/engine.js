@@ -272,7 +272,7 @@ export function useEngineSync() {
 		}
 			
 		const socket = new ReconnectionManager(ws_url, {onMessage, onStateChange : onWsStateChange} );
-
+		window.engineSocket = socket;
 		return () => {
 			socket?.dispose();
 		};
