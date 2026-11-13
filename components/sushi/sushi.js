@@ -269,10 +269,12 @@ class Sushi extends ComponentProcess{
 		const editor_module = require("./webui_launcher.js");
 		
 		try{
-			this.editor_backend = editor_module.startSushiEditorBackend();
-			this.editor.enabled = true;
-
+			this.editor_backend = editor_module.startSushiEditorBackend({
+				data_dir: path.join( this.project.dir, "sushi_webui")
+			});
 			
+			await this.editor_backend.connected;
+			this.editor.enabled = true;
 		}
 		catch(err){
 			this.editor.enabled = false;
@@ -284,10 +286,7 @@ class Sushi extends ComponentProcess{
 			this.editor.increaseRevision();
 			this.editor.notifyChange();
 		}
-		
-		/*
-			probably needs more error handling here 
-		*/
+
 		
 	}
 	
