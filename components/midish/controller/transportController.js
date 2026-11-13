@@ -114,8 +114,17 @@ class TransportController extends MidishSubController{
 	}
 	
 	async setTempoFactor( factor ){
+		
+		factor = Number(factor);
+		
+		if(factor < 50 || factor > 200 || !Number.isSafeInteger(factor) ){
+			throw new Error( "Invalid tempo factor, must be >= 50 and <= 200" )
+		}
+		
 		return this.enqueueOperation( async () => { 
 			await this.#setTempoFactor(factor)
+			this.controller.config.tempo_factor = factor;
+			this.transportData.tempo_factor = factor;
 			this.transportData.increaseRevision();
 			this.transportData.notifyChange();
 		})
@@ -131,14 +140,25 @@ class TransportController extends MidishSubController{
 		if( config.tempo_factor >= 50 &&  config.tempo_factor <= 200 ){
 			await this.#setTempoFactor(config.tempo_factor );
 		}
+		else{
+			config.tempo_factor = 100;
+		}
 		
 	}	
 		
 	async #getTempoFactor(){
-		const res = await this.sendCommand(`getfac`);
+		const res = await this.sendCheckedCommand(`getfac`);
+		/*
+		// See https://github.com/ratchov/midish/issues/3
+		// It would be nice to be able to just rely on session fac value.
+		// But 1) it needs math and 2) there are rounding issues involved
+		// So for now, we store the user value in project.config and restore it after session.
+		// Which is exactly what user would expect to happen anyway.
+		
 		let factor = Number(res.data);
-		factor = parseInt(10_000 / factor); // see https://github.com/ratchov/midish/issues/3
+		factor = parseInt(10_000 / factor); 
 		this.transportData.tempo_factor = factor;
+		*/
 	}	
 	
 	

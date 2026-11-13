@@ -13,38 +13,8 @@ import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 import { Input } from "@/components/ui/input";
 
-import { MidishSeek } from "@/components/sc_components/midishSeek";
+import { MidishSeek, MidishTempoFactor } from "@/components/sc_components/midishTransportDialogs";
 
-function MidishTempoFactor({transport}){
-	
-	const [tempo, setTempo] = useState(transport.tempo_factor);
-	
-	useEffect(() => {
-		setTempo(transport.tempo_factor);
-	}, [transport.rev]);
-
-	
-	const onSubmit = (e)=>{
-		e.preventDefault();
-		const promise = MidishHttp.tempo_set_factor(tempo);
-		toast.promise(promise, {
-			loading:  `Updating tempo %`,
-			success:  `Tempo % updated`,
-			error: (err) => ({
-				message: `Could not update tempo %`,
-				description: err.message,
-			}),
-		});
-	}
-	
-	return(
-		<form onSubmit={onSubmit} className="grid grid-cols-[auto_2fr_auto] items-center gap-2">
-			<strong>Tempo<i>(%)</i></strong>
-			<Input onChange={ e=> setTempo(e.target.value)} type="number" min="50" max="200" value={tempo} />
-			<Button type="submit">Update</Button>
-		</form>
-	)
-}
 
 function MidishTransport(){
 	
@@ -104,8 +74,9 @@ function MidishTransport(){
 
 
 	return(
-		<div>
-			<div className="grid grid-cols-[1fr_2fr] gap-2 items-center p-2 border">
+		<div className="grid grid-col gap-2">
+		
+			<div className="grid grid-cols-[1fr_2fr] gap-2 items-center">
 			
 				<MidishSeek/>
 

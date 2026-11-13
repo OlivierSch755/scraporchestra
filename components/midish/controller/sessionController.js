@@ -45,7 +45,7 @@ class SessionController extends MidishSubController{
 		}
 	}
 	
-	// do NOT call this from outside an enqueueOperation callback
+	// do NOT call this from outside an enqueueOperation callback ( or init function )
 	async refreshSessionUnsafe() {
 		this.sessionPromise = null;
 		const session = await this.getSessionUnsafe();
@@ -53,7 +53,6 @@ class SessionController extends MidishSubController{
 		session.notifyChange();
 		return session;
 	}
-	
 	
 	async resetSession(){
 		return this.enqueueOperation( async () => {
