@@ -71,7 +71,7 @@ export function ProjectView(){
 
 
 	return (
-		<section className="flex flex-col gap-6">
+		<section className="flex flex-col gap-2">
 		
 			<header>
 			
@@ -93,28 +93,18 @@ export function ProjectView(){
 			
 			
 			{/* Project components */}
-			<section className="flex flex-col gap-2 border p-2">
+			<section className="flex flex-col gap-2 border-y py-2">
 			
 				<header className="border-b pb-2" >
 				
-					<h3 className="text-1xl font-bold">Components</h3>
-					
 					{/* Nav and states */}
-					<div className="flex gap-2">
+					<div className="flex gap-2 items-center">
 						{components.map(({ id, name, config, component }) => (
-							<div
-								key={id}
-								className="flex items-center justify-between border rounded-lg p-2 gap-3"
-							>
-								<div>
-									<h4 className="font-semibold">{name}</h4>
-									< StateDisplayer state={component?.state?.state} />
-								</div>
-
-								<Button onClick={() => setEditingComponent(id)}>
-									Edit
+							<div key={id} className={`flex flex-col items-center gap-1 rounded ${(id === editingComponent)?"bg-sky-900":""}`}>
+								<Button className="w-full whitespace-normal" onClick={() => setEditingComponent(id)}>
+									{name}
 								</Button>
-								
+								< StateDisplayer state={component?.state?.state} />
 							</div>
 						))}
 					</div>
