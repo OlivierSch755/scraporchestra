@@ -135,8 +135,6 @@ export const MidishSeek = memo( ()=> {
 
 export const MidishTempoFactor = memo( ({transport}) => {
 	
-	console.log(transport)
-	
 	const [open, setOpen] = useState(false);
 	const [tempo, setTempo] = useState(transport.tempo_factor ?? 100);
 	const titleRef = useRef(null);
