@@ -10,6 +10,8 @@ import { MidishWidget } from "./sc_components/midish.jsx";
 import { SushiWidget } from "./sc_components/sushi.jsx";
 import { useEngineStore }  from "@/services/engine";
 
+import { ProjectActionsModal }  from "./projectViewActions.jsx";
+
 
 
 export function ProjectView(){
@@ -83,8 +85,9 @@ export function ProjectView(){
 				
 				{/* Project actions */}
 				<ButtonGroup>
-					<Button onClick={handleClose}>Close project</Button>
-					<Button onClick={handleSave}>Save project</Button>
+					<Button onClick={handleClose}>Close</Button>
+					<Button onClick={handleSave}>Save</Button>
+					<ProjectActionsModal project={project} />
 				</ButtonGroup>
 				
 			</header>

@@ -76,6 +76,33 @@ export async function open(project_name) {
 		);
 	}
 };
+export async function installComponent(component_name) {
+	const response = await fetch(
+		`/projects/api/add_components`, {
+			method: 'POST', 
+			 headers: {"Content-Type": "application/json"}, 
+			 body: JSON.stringify([component_name])
+		}
+	);
+	if (!response.ok) {
+		throw new Error(
+			await response.text() || ( 'Could not install component ' + component_name )
+		);
+	}
+};
+
+export async function unInstallComponent(component_name) {
+	const response = await fetch(
+		`/projects/api/delete_component/${encodeURIComponent(component_name)}`, {
+			method: 'POST',
+		}
+	);
+	if (!response.ok) {
+		throw new Error(
+			await response.text() || ( 'Could not uninstall component ' + component_name )
+		);
+	}
+};
 
 export async function fetchProjectList( { signal } = {} ) {
 	const response = await fetch('/projects/api/list', {
@@ -112,8 +139,6 @@ export async function setAutostart( project_name ) {
 		);
 	}
 }
-
-
 
 export async function clearAutostart() {
 	const response = await fetch(`/projects/api/autostart/clear`, {method:"POST"} );

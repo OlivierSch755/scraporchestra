@@ -141,6 +141,7 @@ class Engine {
 		}
 		finally{
 			this.state = RessourceState.READY;
+			Dispatcher.emit("engine.snapshot", this)
 		}
 	}
 	
