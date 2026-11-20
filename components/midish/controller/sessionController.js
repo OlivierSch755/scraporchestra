@@ -100,7 +100,7 @@ class SessionController extends MidishSubController{
 						the session (play once) to make sure everything is ok. 
 				*/
 				await this.sendCheckedCommand("setunit 96");
-
+				await this.#initNewSession();
 				await this.refreshSessionUnsafe();
 				await this.controller.trackController.refreshMetaTrackUnsafe();
 				
@@ -160,7 +160,16 @@ class SessionController extends MidishSubController{
 		} )
 	}
 	
+	async initNewSession(){
+		return this.enqueueOperation( async ()=>{ 
+			await this.#initNewSession();
+		} )
+	}
 	
+	async #initNewSession(){
+		await this.sendCheckedCommand(`fnew passthru`);
+		await this.sendCheckedCommand(`fmap { any {1 0..15} } { any {0 0..15} }`);
+	}
 	
 }
 
