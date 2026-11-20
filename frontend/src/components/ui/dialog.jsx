@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useRef, useState } from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cn } from "cn"
 
@@ -151,7 +152,47 @@ function DialogDescription({
   )
 }
 
+
+function ScModal({header, description, children, footer, open, setOpen}){
+	
+	const titleRef = useRef(null);
+	return (
+		<Dialog open={open} onOpenChange={setOpen} >
+			<DialogContent className="sm:max-w-3xl bg-sidebar px-4" initialFocus={titleRef}>
+			
+				<DialogHeader>
+					<DialogTitle tabIndex={-1} ref={titleRef}>{header}</DialogTitle>
+				</DialogHeader>
+				
+				{description && 
+					<DialogDescription>
+						{description}
+					</DialogDescription>
+				}
+				
+				
+				<div className="relative -mx-3">
+					<div className="absolute w-full h-full p-5 top-0 left-0 shadow-[0px_0px_0px_1px_inset_var(--sidebar)] bg-sidebar-ring" />
+					<div className="no-scrollbar max-h-[50dvh] overflow-y-auto p-2 scroll-fade bg-background">
+						{children}
+					</div>
+				</div>
+				
+				{footer && 
+				   <DialogFooter>
+					{footer}
+					</DialogFooter>
+				}
+				
+			</DialogContent>
+		</Dialog>
+	)
+}
+
+
+
 export {
+  ScModal,
   Dialog,
   DialogClose,
   DialogContent,

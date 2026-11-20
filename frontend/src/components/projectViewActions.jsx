@@ -5,12 +5,7 @@ import { useEngineStore }  from "@/services/engine";
 import { toast } from 'sonner';
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  ScModal
 } from "@/components/ui/dialog"
 
 import {
@@ -67,62 +62,52 @@ export function ProjectActionsModal({className, project}){
 				More
 			</Button>
 					
-			{/*Dialog*/}
-			<Dialog 
+			<ScModal 
 				open={open}
-				onOpenChange={setOpen}
+				setOpen={setOpen}
+				header="Project actions"
 			>
-				<DialogContent className="sm:max-w-3xl" initialFocus={titleRef}>
-				
-					<DialogHeader>
-						<DialogTitle tabIndex={-1} ref={titleRef}>Project actions</DialogTitle>
-					</DialogHeader>
-					
-					<div className="border p-2 grid gap-2 items-center">
-						<h3 className="border-b">Manage components</h3>
-							
-						<div className="grid grid-cols-[2fr_1fr] gap-2 items-center">
-							<div><strong>DSP</strong> <i>Sushi</i></div>
-							
-							{!installed_components.sushi 
-								&& 
-								<Button onClick={ e=>{installComponent("sushi")} }>Install</Button>
-								|| 
-								<Button variant="destructive" onClick={ e=>{removeComponent("sushi")} }>Remove</Button>
-							}
-							
-							<div><strong>MIDI transport</strong> <i>Midish</i></div>
-							{!installed_components.midish 
-								&& 
-								<Button onClick={ e=>{installComponent("midish")} }>Install</Button>
-								|| 
-								<Button variant="destructive" onClick={ e=>{removeComponent("midish")} }>Remove</Button>
-							}
-							
-							<div><strong>MIDI Connections manager</strong></div>
-							{!installed_components.midi_connections 
-								&& 
-								<Button onClick={ e=>{installComponent("midi_connections")} }>Install</Button>
-								|| 
-								<Button variant="destructive" onClick={ e=>{removeComponent("midi_connections")} }>Remove</Button>
-							}
-							
-							<div><strong>Pure Data</strong></div>
-							{!installed_components.pure_data 
-								&& 
-								<Button onClick={ e=>{installComponent("pure_data")} }>Install</Button>
-								|| 
-								<Button variant="destructive" onClick={ e=>{removeComponent("pure_data")} }>Remove</Button>
-							}
-							
-						</div>
+			
+				<div className="grid gap-2 items-center">
+					<h3 className="border-b">Manage components</h3>
 						
+					<div className="grid grid-cols-[2fr_1fr] gap-2 items-center">
+						<div><strong>DSP</strong> <i>Sushi</i></div>
 						
+						{!installed_components.sushi 
+							&& 
+							<Button onClick={ e=>{installComponent("sushi")} }>Install</Button>
+							|| 
+							<Button variant="destructive" onClick={ e=>{removeComponent("sushi")} }>Remove</Button>
+						}
+						
+						<div><strong>MIDI transport</strong> <i>Midish</i></div>
+						{!installed_components.midish 
+							&& 
+							<Button onClick={ e=>{installComponent("midish")} }>Install</Button>
+							|| 
+							<Button variant="destructive" onClick={ e=>{removeComponent("midish")} }>Remove</Button>
+						}
+						
+						<div><strong>MIDI Connections manager</strong></div>
+						{!installed_components.midi_connections 
+							&& 
+							<Button onClick={ e=>{installComponent("midi_connections")} }>Install</Button>
+							|| 
+							<Button variant="destructive" onClick={ e=>{removeComponent("midi_connections")} }>Remove</Button>
+						}
+						
+						<div><strong>Pure Data</strong></div>
+						{!installed_components.pure_data 
+							&& 
+							<Button onClick={ e=>{installComponent("pure_data")} }>Install</Button>
+							|| 
+							<Button variant="destructive" onClick={ e=>{removeComponent("pure_data")} }>Remove</Button>
+						}
 					</div>
-
+				</div>
+			</ScModal>	
 					
-				</DialogContent>
-			</Dialog>
 		</>
 	);
 }

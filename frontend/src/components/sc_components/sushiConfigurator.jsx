@@ -2,12 +2,7 @@ import { useRef, useState } from "react";
 import { toast } from 'sonner';
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  ScModal
 } from "@/components/ui/dialog"
 
 import {
@@ -38,11 +33,9 @@ import {
 
 import { Button } from "@/components/ui/button"
 
-
+import { Trash } from "lucide-react";
 
 async function updateSushiConfig(config) {
-	
-	console.log(config)
 	
 	const response = await fetch(
 		'/components/sushi/api/save_config',
@@ -59,11 +52,10 @@ async function updateSushiConfig(config) {
 	}
 };
 
+
 export function SushiConfigurator({config}){
 	
 	if(!config) return null;
-	
-	const titleRef = useRef(null);
 	
 	const [open, setOpen] = useState(false);
 	const [oscIp, setOscIp] = useState(config.osc_ip ?? "");
@@ -131,33 +123,24 @@ export function SushiConfigurator({config}){
 	
 	const drivers = ['--raspa', '--jack','--portaudio' ];
 
+	
+
+
 	return (    
 		<>
 			{/*Button to open dialog*/}
 			<Button className="w-full" onClick={()=>setOpen(true)}>Edit config</Button>
 			
-			{/*Dialog*/}
-			<Dialog open={open} onOpenChange={setOpen} >
-				<DialogContent className="sm:max-w-3xl" initialFocus={titleRef}>
-				
-					<DialogHeader>
-						<DialogTitle tabIndex={-1} ref={titleRef}>Sushi startup configuration</DialogTitle>
-					</DialogHeader>
-					
-					<DialogDescription>
-						How ScrapOrchestra will launch Sushi. 
-					</DialogDescription>
-				
-				
-					<form onSubmit={onSubmit} >
-						<div className="-mx-4 no-scrollbar max-h-[50dvh] overflow-y-auto px-4 flex flex-col gap-6">
-					
-						{/*
-							Form inside dialog
-							It would be nice to split this in separate react components.
-						*/}
-						
-
+			<ScModal 
+				open={open}
+				setOpen={setOpen}
+				header="Sushi startup configuration"
+				description="How ScrapOrchestra will launch Sushi."
+				footer= <Button onClick={onSubmit} className="w-full">Update Sushi configuration</Button>
+			>
+			
+				<form onSubmit={onSubmit}>
+						<div className="flex flex-col gap-6 ">
 							{/*Edit env variables*/}
 							<FieldSet className="w-full max-w-none gap-4">
 							
@@ -196,12 +179,12 @@ export function SushiConfigurator({config}){
 										</Field>
 										
 										<Button
+											aria-label="delete environment variable"
 											type="button"
 											variant="destructive"
-											size="icon"
 											onClick={() => removeEnvRow(row.id)}
 										>
-											X
+											<Trash />
 										</Button>
 
 									</div>
@@ -237,16 +220,12 @@ export function SushiConfigurator({config}){
 									</Combobox>
 								</Field>
 							</FieldSet>
-							
 						</div>
 					</form>
 					
-				   <DialogFooter>
-					  <Button onClick={onSubmit} className="w-full">Update Sushi configuration</Button>
-					</DialogFooter>
-					
-				</DialogContent>
-			</Dialog>
+			</ScModal>
+			
+			
 		
 		</>
 	);
