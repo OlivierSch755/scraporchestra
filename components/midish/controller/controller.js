@@ -23,7 +23,7 @@ class MidishController{
 		this.initialized = false;
 		this.disposed = false;
 				
-		this.session =  new DataSection (
+		this.session = new DataSection (
 			dispatch_path,
 			"session",
 			{
@@ -31,6 +31,14 @@ class MidishController{
 				filters: [],
 				tap: "off",
 				tapev: null,
+			}
+		);
+		
+		this.meta_track = new DataSection (
+			dispatch_path,
+			"meta_track",
+			{
+				events : {}
 			}
 		);
 		
@@ -85,14 +93,12 @@ class MidishController{
 			})
 			
 			
-			
-			
-			
 			await this.sessionController.refreshSessionUnsafe();
 			
 			await this.transportController.init();
+			
 			await this.initDevices();
-			await this.initNewSession();
+			await this.initNewSession(); // todo
 			
 			this.initialized = true;
 		}

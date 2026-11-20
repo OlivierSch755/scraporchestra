@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect, memo } from "react";
 import { toast } from 'sonner';
 import * as MidishHttp from '@/lib/midish.js';
 import { useEngineStore }  from "@/services/engine";
@@ -11,15 +12,67 @@ import { Button } from "@/components/ui/button"
 import { Play, Pause, Square as Stop, Circle as Record } from "lucide-react";
 
 
-
-export function MidishTransport(){
+const MidishCurrentTempo = memo( ({className})=> {
 	
-    const transport = useEngineStore(
-        (state) => state.engine?.project?.components?.midish?.transport
-    );
+	const measurePosition = useEngineStore(
+		(state) => state.engine?.project?.components?.midish?.transport?.position?.position?.measure
+	);
+	
+	const metaTrackEvents = useEngineStore(
+		(state) => state.engine?.project?.components?.midish?.meta_track?.events
+	);
+	
+	if(measurePosition === undefined || metaTrackEvents === undefined) return;
+	
+	// Here we figure out the current tempo and time signature at current measure position
+	let current_state = null;
+	let i = metaTrackEvents.length;
 
-	if(!transport) return null;
+	while( i-- ){
+		let event = metaTrackEvents[i];
+		if( event.measure < measurePosition ){
+			// if selected event is in the past, we only care about its final tempo state (the transition it represents happened before).
+			current_state = {...event, startTempo : event.endTempo }; 
+			break;
+		}
+		if( event.measure == measurePosition ){
+			current_state = event;
+			break;
+		}
+	}
+	
+	if(current_state === null) return;
+	
+	const { startTempo, endTempo, timeSignature } = current_state;
+	
+	// Format tempo string (in case there is a transition happening)
+	let tempo_string;
+	if( endTempo != startTempo  ){
+		tempo_string = `${startTempo}..${endTempo}`;
+	}
+	else{
+		tempo_string = startTempo;
+	}
+	
+	return (
+		<div className={className}>
+			<div className="flex gap-2 h-full items-center">
+				<div className="flex gap-1 p-1 border">
+					<span>{timeSignature.beats}</span>
+					<span>/</span>
+					<span>{timeSignature.unit}</span>
+				</div>
+				<div className="border p-1">
+					{tempo_string} <small>bpm</small>
+				</div>
+			</div>
+		</div>
+	);
+})
 
+
+function MidishTransportControls({className, transport}){
+	
 	const onPlay = ()=>{
 		const promise = MidishHttp.transport_play();
 		toast.promise(promise, {
@@ -67,62 +120,75 @@ export function MidishTransport(){
 		});
 	}
 	
+	return(
+		<ButtonGroup className={className} >
+		
+			<Button
+				aria-label="Record"
+				variant={ transport.mode === Modes.RECORD ? 'destructive' : 'outline' }
+				onClick={onRecord}
+				disabled={ 
+					/*  disable when playing or recording  */
+					transport.mode === Modes.RECORD 
+					|| transport.mode === Modes.PLAY 
+				}
+			><Record/></Button>
+			
+			<Button
+				aria-label="Play"
+				onClick={onPlay}
+				disabled={ 
+					/*  disable when playing or recording  */
+					transport.mode === Modes.RECORD 
+					|| transport.mode === Modes.PLAY 
+				}
+			> <Play/> </Button>
+			
+			<Button
+				aria-label="Pause"
+				onClick={onIdle}
+				disabled={ 
+					/*  disable when already idle  */
+					transport.mode === Modes.IDLE 
+				}
+			><Pause/></Button>
+			
+			<Button
+				aria-label="Stop"
+				onClick={onStop}
+				disabled={ 
+					/*  disable when stopped  */
+					transport.mode === Modes.STOP 
+				}
+			><Stop/></Button>
+			
+		</ButtonGroup>
+	)
+}
 
+
+
+export function MidishTransport(){
+	
+    const transport = useEngineStore(
+        (state) => state.engine?.project?.components?.midish?.transport
+    );
+
+	if(!transport) return null;
 
 	return(
 		<div className="grid grid-col gap-2">
 		
-			<div className="grid grid-cols-[1fr_2fr] gap-2 items-center">
+			<div className="grid grid-cols-4 gap-2 items-center">
 			
-				<MidishSeek/>
-
-				<ButtonGroup className="justify-self-end" >
+				<MidishSeek className="col-span-2" />
+				<MidishTransportControls className="justify-self-end col-span-2" transport={transport} />
 				
-					<Button
-						aria-label="Record"
-						variant={ transport.mode === Modes.RECORD ? 'destructive' : 'outline' }
-						onClick={onRecord}
-						disabled={ 
-							/*  disable when playing or recording  */
-							transport.mode === Modes.RECORD 
-							|| transport.mode === Modes.PLAY 
-						}
-					><Record/></Button>
-					
-					<Button
-						aria-label="Play"
-						onClick={onPlay}
-						disabled={ 
-							/*  disable when playing or recording  */
-							transport.mode === Modes.RECORD 
-							|| transport.mode === Modes.PLAY 
-						}
-					> <Play/> </Button>
-					
-					<Button
-						aria-label="Pause"
-						onClick={onIdle}
-						disabled={ 
-							/*  disable when already idle  */
-							transport.mode === Modes.IDLE 
-						}
-					><Pause/></Button>
-					
-					<Button
-						aria-label="Stop"
-						onClick={onStop}
-						disabled={ 
-							/*  disable when stopped  */
-							transport.mode === Modes.STOP 
-						}
-					><Stop/></Button>
-					
-					
-				</ButtonGroup>
-				
+				<MidishCurrentTempo className="col-span-2 self-stretch" />
+				<MidishTempoFactor transport={transport}/>
+			
 			</div> 
-			
-			<MidishTempoFactor transport={transport}/>
+
 			
 		</div>
 	);

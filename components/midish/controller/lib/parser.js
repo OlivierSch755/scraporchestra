@@ -31,10 +31,9 @@ function parseMetaTrackinfo(lines) {
 
 		return {
 			measure: Number(meas),
-			timeSignature: `${beats}/${unit}`,
-			tempo: Number(endTempo ?? tempo),
+			timeSignature: {beats : Number(beats), unit : Number(unit)},
+			endTempo: Number(endTempo ?? tempo),
 			startTempo: Number(tempo),
-			hasTempoChange: endTempo !== undefined
 		};
     })
     .filter(Boolean);

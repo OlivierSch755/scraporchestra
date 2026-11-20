@@ -1,6 +1,12 @@
 const {MidishSubController} = require("./subController.js");
+const  { parseMetaTrackinfo } = require("./lib/parser.js");
+
 
 class TrackController extends MidishSubController{
+	
+	get metaTrackData(){
+		return this.controller.meta_track;
+	}	
 	
 	
 	async #selectTrack(track_name){
@@ -58,8 +64,19 @@ class TrackController extends MidishSubController{
 		});
 		
 	}
+	
+	
+	
 
-
+	async refreshMetaTrackUnsafe() {
+		const minfo_result = await this.sendCommand("minfo");
+		const parsed = parseMetaTrackinfo( minfo_result.data );
+		
+		this.metaTrackData.events = parsed;
+		this.metaTrackData.increaseRevision();
+		this.metaTrackData.notifyChange();
+	}
+	
 }
 
 module.exports = {TrackController}

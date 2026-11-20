@@ -32,8 +32,7 @@ import {Button} from  "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 
 
-
-export const MidishSeek = memo( ()=> {
+export const MidishSeek = memo( ({className})=> {
 	
 	const titleRef = useRef(null);
 	
@@ -80,7 +79,8 @@ export const MidishSeek = memo( ()=> {
 	
 	return (
 		<>
-			<Button onClick={ e => {
+			<Button className={className}
+				onClick={ e => {
 				setOpen(true)
 				setMeasure(measurePosition);
 			} }>
@@ -178,7 +178,6 @@ export const MidishTempoFactor = memo( ({transport}) => {
 				setOpen(true)
 				setTempo(transport.tempo_factor ?? 100);
 			} }>
-				<small>Tempo</small>
 				{transport.tempo_factor}
 				%
 			</Button>

@@ -144,7 +144,6 @@ class TransportController extends MidishSubController{
 		else{
 			config.tempo_factor = 100;
 		}
-		
 	}	
 	
 	// unused

@@ -58,6 +58,7 @@ class SessionController extends MidishSubController{
 		return this.enqueueOperation( async () => {
 			await this.sendCheckedCommand(`reset`);
 			await this.refreshSessionUnsafe();
+			await this.controller.trackController.refreshMetaTrackUnsafe();
 		} );
 	}
 	
@@ -101,14 +102,14 @@ class SessionController extends MidishSubController{
 				await this.sendCheckedCommand("setunit 96");
 
 				await this.refreshSessionUnsafe();
-
+				await this.controller.trackController.refreshMetaTrackUnsafe();
+				
 				return { import_errors: res.err };
 			}
 			catch (err) {
 				if (backup_dir) {
 					try {
 						const backup_file = path.join(backup_dir, "backup.msh");
-
 						await this.sendCheckedCommand(`import "${backup_file}"`);
 						await this.refreshSessionUnsafe();
 					}
@@ -149,6 +150,7 @@ class SessionController extends MidishSubController{
 		return this.enqueueOperation( async ()=>{ 
 			await this.sendCheckedCommand(`load "${session_filepath}"`);
 			await this.refreshSessionUnsafe();
+			await this.controller.trackController.refreshMetaTrackUnsafe();
 		} )
 	}
 		
@@ -157,6 +159,8 @@ class SessionController extends MidishSubController{
 			await this.sendCheckedCommand(`save "${session_filepath}"`);
 		} )
 	}
+	
+	
 	
 }
 

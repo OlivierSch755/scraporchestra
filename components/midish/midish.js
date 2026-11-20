@@ -105,7 +105,7 @@ class Midish extends Component{
 			}
 		}
 		else {
-			// await this.controller.initNewSession();
+			await this.controller.sessionController.initNewSession();
 		}
 		this.state = RessourceState.READY;
 	}
@@ -185,14 +185,15 @@ class Midish extends Component{
 	}
 	
 	
-	
+	// This is what we expose to clients as a snapshot
 	toJSON(){
 		
 		const data = super.toJSON();
 		data.has_session = this.has_session;
 		data.session_restore_failed = this.session_restore_failed;
-		data.transport = this?.controller?.transport;
-		data.session = this?.controller?.session;
+		data.transport = this.controller?.transport;
+		data.session = this.controller?.session;
+		data.meta_track = this.controller?.meta_track;
 		return data;
 	}
 	
