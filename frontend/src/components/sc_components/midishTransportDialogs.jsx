@@ -133,7 +133,7 @@ export const MidishSeek = memo( ({className})=> {
 	);
 })
 
-export const MidishTempoFactor = memo( ({transport}) => {
+export const MidishTempoFactor = memo( ({transport, className}) => {
 	
 	const [open, setOpen] = useState(false);
 	const [tempo, setTempo] = useState(transport.tempo_factor ?? 100);
@@ -174,7 +174,7 @@ export const MidishTempoFactor = memo( ({transport}) => {
 	
 	return (
 		<>
-			<Button onClick={ e => {
+			<Button className={className} onClick={ e => {
 				setOpen(true)
 				setTempo(transport.tempo_factor ?? 100);
 			} }>

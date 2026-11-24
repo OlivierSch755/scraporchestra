@@ -166,8 +166,6 @@ function MidishTransportControls({className, transport}){
 	)
 }
 
-
-
 export function MidishTransport(){
 	
     const transport = useEngineStore(
@@ -179,14 +177,23 @@ export function MidishTransport(){
 	return(
 		<div className="grid grid-col gap-2">
 		
-			<div className="grid grid-cols-4 gap-2 items-center">
+			<div className="
+				grid 
+				md:flex
+				gap-2 
+				items-center
+			">
 			
-				<MidishSeek className="col-span-2" />
-				<MidishTransportControls className="justify-self-end col-span-2" transport={transport} />
+				<div className="flex gap-2 justify-between md:justify-start">
+					<MidishSeek className="w-20 grow" />
+					<MidishTransportControls className="shrink-0" transport={transport} />
+				</div>
 				
-				<MidishCurrentTempo className="col-span-2 self-stretch" />
-				<MidishTempoFactor transport={transport}/>
-			
+				<div className="flex gap-2">
+					<MidishCurrentTempo className="self-stretch" />
+					<MidishTempoFactor className="grow" transport={transport}/>
+				</div>
+				
 			</div> 
 
 			

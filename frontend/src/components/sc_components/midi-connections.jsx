@@ -309,7 +309,6 @@ function Rule({ rule }) {
   );
 }
 
-
 function Port({ port, client, onPortSelect }){
 	
 	
@@ -362,7 +361,7 @@ function Client({ client,  onPortSelect }) {
 
 
 
-export const  MidiConnectionsWidget = memo( ()=> {
+export const MidiConnectionsWidget = memo( ()=> {
 	
     const component = useEngineStore(
         (state) => state.engine?.project?.components?.midi_connections
@@ -372,8 +371,6 @@ export const  MidiConnectionsWidget = memo( ()=> {
         (state) => state.engine?.project?.config?.components?.midi_connections
     );
 	
-	
-
 	const [selectedPort, setSelectedPort] = useState(null);
 	const [open, setOpen] = useState(false);
 	
