@@ -16,11 +16,13 @@
     --color-sidebar-primary: var(--sidebar-primary);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar: var(--sidebar);
+    --color-success: var(--success);
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
     --color-chart-2: var(--chart-2);
     --color-chart-1: var(--chart-1);
+    --color-selected: var(--selected);
     --color-ring: var(--ring);
     --color-input: var(--input);
     --color-border: var(--border);
@@ -83,6 +85,8 @@
     --sidebar-ring: oklch(0.708 0 0);
 	--scroll-fade-size:2em;
 	--scroll-fade-reveal:3em;
+	--success:oklch(76.5% 0.177 163.223);
+	--selected: var(--color-sky-900);
 }
 
 .dark {
@@ -117,8 +121,8 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+	--selected: var(--color-sky-900);
 	
-
 	
 }
 

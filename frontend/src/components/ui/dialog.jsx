@@ -153,11 +153,11 @@ function DialogDescription({
 }
 
 
-function ScModal({header, description, children, footer, open, setOpen}){
+function ScModal({header, description, children, footer, open, setOpen, onOpenChange = setOpen}){
 	
 	const titleRef = useRef(null);
 	return (
-		<Dialog open={open} onOpenChange={setOpen} >
+		<Dialog open={open} onOpenChange={onOpenChange} >
 			<DialogContent className="sm:max-w-3xl bg-sidebar px-4" initialFocus={titleRef}>
 			
 				<DialogHeader>
@@ -171,8 +171,8 @@ function ScModal({header, description, children, footer, open, setOpen}){
 				}
 				
 				
-				<div className="relative -mx-3">
-					<div className="absolute w-full h-full p-5 top-0 left-0 shadow-[0px_0px_0px_1px_inset_var(--sidebar)] bg-sidebar-ring" />
+				<div className="relative -mx-3 overflow-hidden">
+					<div className="absolute w-full h-full p-5 top-0 left-0  bg-sidebar-ring" />
 					<div className="no-scrollbar max-h-[50dvh] overflow-y-auto p-2 scroll-fade bg-background">
 						{children}
 					</div>

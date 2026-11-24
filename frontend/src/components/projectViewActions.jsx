@@ -28,7 +28,6 @@ import {ButtonGroup} from "@/components/ui/button-group"
 
 export function ProjectActionsModal({className, project}){
 	
-	const titleRef = useRef(null);
 	const [open, setOpen] = useState(false);
 	
 	const installComponent = (component_name)=>{

@@ -8,6 +8,7 @@ import { StateDisplayer } from './stateDisplayer.jsx';
 import * as Project from '@/lib/project.js';
 import { MidishWidget } from "./sc_components/midish.jsx";
 import { SushiWidget } from "./sc_components/sushi.jsx";
+import { MidiConnectionsWidget } from "./sc_components/midi-connections.jsx";
 import { useEngineStore }  from "@/services/engine";
 
 import { ProjectActionsModal }  from "./projectViewActions.jsx";
@@ -67,7 +68,7 @@ export function ProjectView(){
             name: 'MIDI routing',
             config: project.config.components.midi_connections,
             component: project.components.midi_connections,
-            Widget: ()=> null,
+            Widget: MidiConnectionsWidget,
         },
     ].filter(({ config }) => config);
 
@@ -103,8 +104,8 @@ export function ProjectView(){
 					{/* Nav and states */}
 					<div className="flex gap-2 items-center">
 						{components.map(({ id, name, config, component }) => (
-							<div key={id} className={`flex flex-col items-center gap-1 rounded ${(id === editingComponent)?"bg-sky-900":""}`}>
-								<Button className="w-full whitespace-normal" onClick={() => setEditingComponent(id)}>
+							<div key={id} className={`flex flex-col items-center gap-1 rounded`}>
+								<Button  variant={(id === editingComponent)?"selected":"outline"} className="w-full whitespace-normal" onClick={() => setEditingComponent(id)}>
 									{name}
 								</Button>
 								< StateDisplayer state={component?.state?.state} />
