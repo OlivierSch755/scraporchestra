@@ -102,7 +102,8 @@ export function ProjectView(){
 				<header className="border-b pb-2" >
 				
 					{/* Nav and states */}
-					<div className="flex gap-2 items-center">
+					<div className="min-w-12xs grid grid-cols-[repeat(4,minmax(5rem,var(--container-3xs)))] gap-2 items-center">
+					
 						{components.map(({ id, name, config, component }) => (
 							<div key={id} className={`flex flex-col items-center gap-1 rounded`}>
 								<Button  variant={(id === editingComponent)?"selected":"outline"} className="w-full whitespace-normal" onClick={() => setEditingComponent(id)}>
@@ -111,6 +112,7 @@ export function ProjectView(){
 								< StateDisplayer state={component?.state?.state} />
 							</div>
 						))}
+						
 					</div>
 				
 				</header>

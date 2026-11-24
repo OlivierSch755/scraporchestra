@@ -5,17 +5,16 @@ export function StateDisplayer({state = ResourceState.CLOSED }){
 	
 	const search = Object.entries(ResourceState).find( ([key,value]) => value === state );
 	
-	
 	if(!search) throw new Error(`Unknown state ${state}`);
 	
-	if(search === ResourceState.ERROR ){
+	if(search[1] === ResourceState.ERROR ){
 		return (
 			<Badge variant="destructive">{search[0]}</Badge>
 		)
 	}
-	if(search === ResourceState.READY ){
+	if(search[1] === ResourceState.READY ){
 		return (
-			<Badge variant="outline" className="bg-green-50">{search[0]}</Badge>
+			<Badge variant="outline" className="bg-success">{search[0]}</Badge>
 		)
 	}
 	return (

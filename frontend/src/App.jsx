@@ -23,20 +23,16 @@ export default function App() {
 		connecting: "bg-orange-500",
 	};
 
-
-console.log(socketState)
-
 	const socketStateDisplayer = (
-		<div className="flex items-center gap-4 fixed right-0">
+		<div className="flex justify-end items-center gap-4 fixed w-[100vw]">
 			{socketState !== "connected" && <small className="capitalize">{socketState}</small>}
 			{socketState === "connected" && <span className="sr-only">{socketState}</span>}
 			<div
-				className={`w-4 h-4 rounded-full ${
+				className={`w-4 h-4 rounded-full mr-2 ${
 					statusColors[socketState] ?? "bg-gray-400"
 				}`}
 				aria-hidden="true"
 			/>
-
 		</div>
 	);
 		
@@ -54,7 +50,7 @@ console.log(socketState)
 	return (
 		<>
 		{socketStateDisplayer}
-		<main className="m-2">
+		<main className="min-w-0 w-full p-2">
 			{main_view}
 		</main>
 		<Toaster />
