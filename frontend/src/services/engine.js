@@ -27,10 +27,6 @@ function SushiNotificationHandler(component, notification){
 
 function MidiConnectionsNotificationHandler(component, notification){
 	
-	
-	
-	console.log(notification)
-	
 	if (!component || !notification) {
 		return component;
 	}
@@ -45,7 +41,6 @@ function MidiConnectionsNotificationHandler(component, notification){
 			
 
 			if(notification.data.rev <= component.graph.rev){
-				console.log("skip")
 				return component
 			}
 			const next_component = {
@@ -63,7 +58,6 @@ function MidiConnectionsNotificationHandler(component, notification){
 			
 			
 			if(notification.data.rev <= component.rules.rev){
-				console.log("skip")
 				return component
 			}
 			const next_component = {
@@ -73,7 +67,6 @@ function MidiConnectionsNotificationHandler(component, notification){
 			return next_component;
 		}
 	}
-	console.log("skipddd")
 	return component;
 }
 
@@ -324,7 +317,6 @@ export function useEngineSync() {
 			}
 			
 			if (message.notif === "engine.snapshot") {
-				console.log(message.data)
 				setSnapshot(message.data);
 				return;
 			}
