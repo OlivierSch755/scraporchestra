@@ -6,9 +6,10 @@ const { Component } = require("./component.js")
 const {RessourceState} = require("engine/states");
 
 const {
-	ComponentError,
+	ComponentNotInstalledError,
 	ComponentUnexpectedlyTerminatedError,
 	ComponentNotProperlyClosedError,
+	ComponentUnknownError
 } = require("engine/component/errors");
 
 
@@ -79,17 +80,19 @@ class ComponentProcess extends Component{
 			this.state = RessourceState.ERROR;
 			const error = new ComponentUnexpectedlyTerminatedError( `Component ${this.name} process exited unexpectedly` );
 			error.closeEvent = event;
-			Dispatcher.emit("component.error", {component : this, error} ); // this is used nowhere so far
+			Dispatcher.emit("component.error", {component : this, error} );
 		} );	
 	}
 	
 	handleError(instance){
 		instance.once("error", (err) =>{
+			let error = new ComponentUnknownError( `Component ${this.name} had an unknown error`, {cause : err});
+			if(err.code === "ENOENT"){
+				error = new ComponentNotInstalledError( `Component ${this.name} has missing binaries. Was it globally installed?` );
+			}
 			this.instance = null;
 			this.state = RessourceState.ERROR;
-			const error = new ComponentError( `Component ${this.name} process error` );
-			error.cause = err;
-			Dispatcher.emit("component.error", {component : this, error} ); // this is used nowhere so far
+			Dispatcher.emit("component.error", {component : this, error} );
 		});
 		
 	}

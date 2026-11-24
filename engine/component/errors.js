@@ -35,18 +35,33 @@ class ComponentInitializationError extends ScrapOrchestraError {
         super("FAILED", message);
     }
 }
+
 class ComponentInstallationError extends ScrapOrchestraError {
     constructor(message = "Component could not be properly installed in project") {
         super("FAILED", message);
     }
 }
 
+class ComponentNotInstalledError extends ScrapOrchestraError {
+    constructor(message = "Component binary is missing, please reinstall it globally") {
+        super("FAILED", message);
+    }
+}
+
+class ComponentUnknownError extends ScrapOrchestraError {
+    constructor(message = "Unknown component error", options) {
+        super("FAILED", message, options);
+    }
+}
+
 module.exports = {
+	ComponentUnknownError,
 	ComponentUnexpectedlyTerminatedError,
 	ComponentNotProperlyClosedError,
 	ComponentInvalidError,
 	ComponentNotFoundError,
 	ComponentAlreadyInstalledError,
 	ComponentInstallationError,
-	ComponentInitializationError
+	ComponentInitializationError,
+	ComponentNotInstalledError
 }

@@ -9,11 +9,7 @@ const {ComponentProcess} = require("engine/component/process");
 const {PdEditorProxy, EditorStates, stateHr } = require("./editor/pd_live_editor.js")
 
 const {
-	ComponentError,
 	ComponentUnexpectedlyTerminatedError,
-	ComponentNotProperlyClosedError,
-	ComponentInvalidError,
-	ComponentNotFoundError
 } = require("engine/component/errors");
 
 
@@ -227,7 +223,7 @@ class PureData extends ComponentProcess{
 	
 	handleClose(instance){
 		
-		const closeHandler = (e) =>{
+		const closeHandler = (event) =>{
 			this.instance = null;
 			if( this.state === RessourceState.CLOSING ){
 				
@@ -245,16 +241,15 @@ class PureData extends ComponentProcess{
 				this.close_editor().catch(err => console.dir(err,{ depth : null}))
 				return;
 			}
-			
+
 			this.state = RessourceState.ERROR;
-			
-			instance.off("close", closeHandler );	
-			const err = new ComponentUnexpectedlyTerminatedError( `Component ${this.name} process should not have exited now` );
-			this.emit("error", err ) ;
+			const error = new ComponentUnexpectedlyTerminatedError( `Component ${this.name} process exited unexpectedly` );
+			error.closeEvent = event;
+			Dispatcher.emit("component.error", {component : this, error} );
 			
 		}
 		
-		instance.on("close", closeHandler );	
+		instance.once("close", closeHandler );	
 	}
 	
 	

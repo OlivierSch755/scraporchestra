@@ -2,8 +2,6 @@ const {spawn} = require("node:child_process");
 
 const sushiWebUiBin = "/usr/bin/sushi-webui";
 
-
-
 function startSushiEditorBackend(options = {}) {
 
     const port = options.port ?? 8081;
@@ -68,16 +66,13 @@ function startSushiEditorBackend(options = {}) {
     return {
         child,
         connected: connectedPromise,
-
         close: () => {
             child.stderr.off("data", handleStdErr);
-
-            if (child.exitCode === null && child.signalCode === null) {
+            if (child.exitCode === null && child.signalCode === null){
                 child.kill("SIGTERM");
             }
         }
     };
 }
-
 
 module.exports = {startSushiEditorBackend}

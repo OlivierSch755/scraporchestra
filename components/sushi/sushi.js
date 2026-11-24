@@ -192,7 +192,7 @@ class Sushi extends ComponentProcess{
 			// restore external data if we have some
 			
 			try{
-				// await SaveRestoreHookExec.onSessionRestore(client, proto, session, this.session_bin_path + ".external.json");
+				await SaveRestoreHookExec.onSessionRestore(client, proto, session, this.session_bin_path + ".external.json");
 			}
 			catch(err){
 				console.warn("error while restoring external data in session", err)
@@ -263,7 +263,6 @@ class Sushi extends ComponentProcess{
 	
 	async open_editor( ){
 		
-		console.log(this.editor)
 		if(this.editor_backend) throw new SushiEditorAlreadyOpenedError("Sushi editor is already running");
 
 		const editor_module = require("./webui_launcher.js");
@@ -300,7 +299,6 @@ class Sushi extends ComponentProcess{
 		}
 		catch(err){
 			const err2 = new SushiEditorCloseError("Could not close Sushi editor properly");
-			console.log(err)
 			err2.cause = err;
 			throw err2;
 		}
@@ -311,8 +309,12 @@ class Sushi extends ComponentProcess{
 	}
 	
 	async close(){
-		if( this.editor_open ) this.close_editor();
-		await super.close();
+		try{
+			this.editor_backend?.close();
+		}
+		finally{
+			await super.close();
+		}
 	}
 	
 	toJSON(){
