@@ -20,10 +20,10 @@ class MidiConnectionsWebController extends ComponentWebController {
 			res.json( this.instance.getGraphAndRules() );
 		});
 		
-		router.post( "/api/disconnect/:sender/:receiver" , async (req, res) => {
-			await this.instance.deleteRuleFromAddresses(req.params.sender, req.params.receiver);
-			res.sendStatus( 200 );
-		});
+		// router.post( "/api/disconnect/:sender/:receiver" , async (req, res) => {
+			// await this.instance.deleteRuleFromAddresses(req.params.sender, req.params.receiver);
+			// res.sendStatus( 200 );
+		// });
 		
 		router.post( "/api/connect/:sender/:receiver/:optional" , async (req, res) => {
 			await this.instance.addRuleFromAddresses( req.params.sender, req.params.receiver, req.params.optional === "1" );
@@ -37,12 +37,12 @@ class MidiConnectionsWebController extends ComponentWebController {
 		
 		router.use( express.static( public_path ) );
 		
-		Dispatcher.on("component.midi_connections.graph", graph =>{
-			web.wssBroadcast( "components.midi_connections.graph", graph ) 
+		Dispatcher.on("component.midico.graph", graph =>{
+			web.wssBroadcast( "component.midico.graph", graph ) 
 		});
 		
-		Dispatcher.on("component.midi_connections.rules", rules =>{
-			web.wssBroadcast( "components.midi_connections.rules", rules ) 
+		Dispatcher.on("component.midico.rules", rules =>{
+			web.wssBroadcast( "component.midico.rules", rules ) 
 		});
 		
 	}

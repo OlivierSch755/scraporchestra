@@ -6,25 +6,19 @@ const Dispatcher = require("engine/dispatcher");
 const {RessourceState} = require("engine/states");
 const {ComponentProcess} = require("engine/component/process");
 
-const {
-	ComponentError,
-	ComponentUnexpectedlyTerminatedError,
-	ComponentNotProperlyClosedError,
-	ComponentInvalidError,
-	ComponentNotFoundError
-} = require("engine/component/errors");
-
+const {DataSection} = require("engine/data_section");
 
 class MidiConnectionsError { constructor(message){ this.message = message } }
+
+
+const dispatch_path = "component.midico";
 
 class MidiConnections extends ComponentProcess{
 	
 	static has_web_controller = true;
 	
 	static get_default_config =()=> require( "./default_config.json" );
-	
-	graph;
-	rules = [];
+
 	all_rules_ok = false;
 	static bin = path.resolve( path.join( __dirname, "bin", "alsa_watch" ) );
 	
@@ -32,26 +26,24 @@ class MidiConnections extends ComponentProcess{
 	constructor( config, project, name ){
 		super( config, project, name ); // will populate this.project and this.config
 		
-		if(config?.rules){
-			this.rules = config.rules.map( raw_rule => Rule.fromJSON( raw_rule ) )
-		}
-		else {
-			this.rules = config?.rules ?? [];
-		}
+		const rules = config?.rules 
+			? config.rules.map( raw_rule => Rule.fromJSON( raw_rule ) ) 
+			: [];
 		
+		this.rulesData = new DataSection( dispatch_path,"rules", { rules } );
+		this.graphData = new DataSection( dispatch_path,"graph", { graph : new MidiGraph() } );
+		
+		// Graph represents current connections (hardware that is connected right now
+		// we don't care what was connected in last session, we only care about what 
+		// is connected now so we only save rules, not graph.
 		config.toJSON = ()=>{
-			return {rules : this.rules}
+			return {rules : this.rulesData.rules.map( rule => rule.toLocalSaveJSON() )}
 		}
-		
-		this.snapshot_version = 0;
-		
 	}
 	
 	initialize(){
 	
 		this.state = RessourceState.LOADING;
-		
-		this.graph = new MidiGraph();
 		
 		const spawn_args = [];
 		this.instance = spawn( MidiConnections.bin,spawn_args, {env : this.env} );
@@ -87,11 +79,11 @@ class MidiConnections extends ComponentProcess{
 	parseSnapShot(data){
 		
 		const version = this.snapshot_version++;
-		const old_graph = this.graph;
-		let	graph = this.graph = null;
+		const old_graph = this.graphData.graph;
+		
+		let	new_graph;
 		
 		const text = data.toString();
-
 
 		/*
 			We may sometime get multiple snapshots in a single frame
@@ -107,18 +99,15 @@ class MidiConnections extends ComponentProcess{
 		
 		for(let line of lines){
 			
-			
 			if( line.startsWith("SNAP") ) {
-				graph = this.graph = new MidiGraph();
-				graph.version = version;
-				
+				new_graph = new MidiGraph();
 			}
 			
 			if(line.startsWith("CLIENT")){
 				const parsed = /^CLIENT\s(?<id>\d+)\s(?<type>\d)\s(?<name>.*$)/.exec(line)?.groups;
 				const client = new Client();
 				Object.assign( client , parsed);
-				graph.clients[client.id] = client;
+				new_graph.clients[client.id] = client;
 			}
 			
 			if(line.startsWith("PORT")){
@@ -137,8 +126,8 @@ class MidiConnections extends ComponentProcess{
 						port.direction = "DUPLEX"
 					break;
 				}
-				graph.clients[port.client_id].ports.push(port)
-				graph.ports.push(port);
+				new_graph.clients[port.client_id].ports.push(port)
+				new_graph.ports.push(port);
 			}
 			
 			if(line.startsWith("LINK")){
@@ -146,32 +135,51 @@ class MidiConnections extends ComponentProcess{
 				let link = new Connection();
 				Object.assign( link , parsed );
 				
-				graph.clients[ link.sender_client_id ]
+				new_graph.clients[ link.sender_client_id ]
 					?.getPortById( link.sender_port_id )
 					?.connections
 					?.push( link )
 			}
 		}
 		
-		if( old_graph && isDeepStrictEqual(old_graph, graph) ){
+		
+		let mdt = Object.values(new_graph.clients)
+		.filter(x => x.name === "Midish-Transport");
+
+		const excludeInternal = ports => ports.filter(x => !x.name.startsWith("midish-internal"));
+
+		new_graph.ports = excludeInternal(new_graph.ports);
+
+		mdt.forEach(client => {
+			client.ports = excludeInternal(client.ports);
+		});
+
+		if (old_graph && isDeepStrictEqual(old_graph, new_graph)) {
 			return;
 		}
-		
-		Dispatcher.emit("component.midi_connections.graph", graph );
+
+		this.graphData.graph = new_graph;
+		this.graphData.increaseRevision();
+		this.graphData.notifyChange();
+
 		this.execRules();
 	}
 	
 	hydrateSenderReceiver(sender_addr, receiver_addr){
+		
+		const graph = this.graphData.graph;
+		
+		
 		let [sender_client_id, sender_port_id] = sender_addr.split(":");
 		let [receiver_client_id, receiver_id] = receiver_addr.split(":");
 		
 		// verify if both those address points to elements that exist in the graph
 		
-		let sender_port = this.graph.getPortByAddress( sender_client_id, sender_port_id );
+		let sender_port = graph.getPortByAddress( sender_client_id, sender_port_id );
 	
 		if(!sender_port) throw new MidiConnectionsError("Unknown sender port : " + sender_addr);
 
-		let receiver_port = this.graph.getPortByAddress( receiver_client_id, receiver_id );
+		let receiver_port = graph.getPortByAddress( receiver_client_id, receiver_id );
 		
 		if(!receiver_port) throw new MidiConnectionsError("Unknown receiver port : " + receiver_addr);
 			
@@ -179,17 +187,20 @@ class MidiConnections extends ComponentProcess{
 	}
 	
 	async addRuleFromAddresses(sender_addr, receiver_addr, optional = false){
+		
+		const graph = this.graphData.graph;
+		
 		const  { sender_port, receiver_port} = this.hydrateSenderReceiver(sender_addr, receiver_addr);
 		
-		const already_exists = this.rules.find( rule => {
+		const already_exists = this.rulesData.rules.find( rule => {
 			return rule.wanted_sender === sender_port && rule.wanted_receiver === receiver_port
 		});
 		
 		if(!already_exists){
 			await this.connectPorts(sender_port, receiver_port);
 			
-			let sender_client = this.graph.getClientFromPort(sender_port);
-			let receiver_client =  this.graph.getClientFromPort(receiver_port);
+			let sender_client = graph.getClientFromPort(sender_port);
+			let receiver_client =  graph.getClientFromPort(receiver_port);
 			
 			let rule = new Rule(sender_client, sender_port, receiver_client, receiver_port, optional);
 			this.addRule(rule);
@@ -197,29 +208,14 @@ class MidiConnections extends ComponentProcess{
 		
 		
 	}
-	
-	deleteRuleFromAddresses(sender_addr, receiver_addr){
-		const  { sender_port, receiver_port} = this.hydrateSenderReceiver(sender_addr, receiver_addr);
-		
-		let concerned_rule = this.rules.find( rule => {
-			return rule.wanted_sender === sender_port && rule.wanted_receiver === receiver_port
-		});
-		
-		this.rules = this.rules.filter( rule => rule !== concerned_rule );
-		return (
-			this.disconnectPorts(sender_port,receiver_port)
-			.then( x=> this.execRules() )
-			.then( x=> this.notifyRulesChange() )
-		)
 
-	}
 	
 	deleteRuleFromId(id_rule){
 		
 		id_rule = parseInt(id_rule);
-		const concerned_rule = this.rules.find( r => r.id === id_rule);
+		const concerned_rule = this.rulesData.rules.find( r => r.id === id_rule);
 		if( !concerned_rule ) throw new MidiConnectionsError("Unknown rule id : " + id_rule);
-		this.rules = this.rules.filter( rule => rule !== concerned_rule );
+		this.rulesData.rules = this.rulesData.rules.filter( rule => rule !== concerned_rule );
 		if( concerned_rule.passed ){
 			const {wanted_sender,  wanted_receiver} = concerned_rule;
 			return (
@@ -277,25 +273,26 @@ class MidiConnections extends ComponentProcess{
 	}
 	
 	addRule( rule ){
-		this.rules.push(rule);
+		this.rulesData.rules.push(rule);
 		this.execRules();
-		this.notifyRulesChange();
-		
+
 	}
 	
 	notifyRulesChange(){
-		Dispatcher.emit("component.midi_connections.rules", this.rules.map( r => r.toClientJSON() ) );
+		this.rulesData.increaseRevision();
+		this.rulesData.notifyChange();
 	}
 	
 	execRules(){
 		
+		const rules = this.rulesData.rules;
 		
 		let oldstate = [];
 		let new_state = [];
 		
 		let result = true;
 		
-		for(let rule of this.rules){
+		for(let rule of rules){
 			oldstate.push(rule.passed);
 			this.execRule(rule);
 			result = result && ( rule.passed || rule.optional );
@@ -328,14 +325,15 @@ class MidiConnections extends ComponentProcess{
 
 	execRule(rule){
 		
+		const graph = this.graphData.graph;
 		
 		rule.passed = false; // goal is to prove this wrong
 		
-		let wanted_sender_client = this.graph.getClientByName( rule.sender_client_name  );
+		let wanted_sender_client = graph.getClientByName( rule.sender_client_name  );
 		
 		let wanted_sender_port = wanted_sender_client?.getPortByName( rule.sender_port_name );
 		
-		let wanted_receiver_client = this.graph.getClientByName( rule.receiver_client_name  );
+		let wanted_receiver_client = graph.getClientByName( rule.receiver_client_name  );
 		let wanted_receiver_port = wanted_receiver_client?.getPortByName( rule.receiver_port_name );
 		
 		if( !wanted_sender_port || !wanted_receiver_port ){
@@ -372,16 +370,13 @@ class MidiConnections extends ComponentProcess{
 		rule.passed = is_connected;
 	}
 
-	getGraphAndRules(){
-		return {
-			graph : this.graph,
-			rules : this.rules.map( r => r.toClientJSON() )
-		}
-	}
-
 	toJSON(){
 		const data = super.toJSON();
-		return data;
+		return {
+			...data,
+			graph : this.graphData,
+			rules : this.rulesData
+		}
 	}
 	
 	
@@ -463,17 +458,28 @@ class Rule{
 			sender_port_name : this.sender_port_name,
 			receiver_client_name : this.receiver_client_name,
 			receiver_port_name : this.receiver_port_name,
-			optional : this.optional
+			optional : this.optional,
+			passed: this.passed,
+			id: this.id,
 		}
 	}
 	
-	toClientJSON() {
+	/* 
+		The data we perist server-side.
+		That is to say, everything but runtime data 
+			- not rule.passed : because it represents the current connection being valid right now
+			- not rule.id : because it represents the id in the current runtime 
+			(we could save it but it would require to rehydrate the Rule class id generator, so more work for same result)
+	*/
+	toLocalSaveJSON(){
+		const raw = this.toJSON();
 		return {
-			...this.toJSON(),
-			passed: this.passed,
-			id: this.id,
-		};
+			...raw,
+			passed : undefined,
+			id : undefined
+		}
 	}
+	
 	
 }
 

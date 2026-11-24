@@ -25,6 +25,58 @@ function SushiNotificationHandler(component, notification){
 	return component;
 }
 
+function MidiConnectionsNotificationHandler(component, notification){
+	
+	
+	
+	console.log(notification)
+	
+	if (!component || !notification) {
+		return component;
+	}
+	
+	switch (notification.notif) {
+		
+		case 'component.midico.graph': {
+
+			if (!component.graph) {
+				return component;
+			}
+			
+
+			if(notification.data.rev <= component.graph.rev){
+				console.log("skip")
+				return component
+			}
+			const next_component = {
+				...component,
+				graph : notification.data
+			}
+			return next_component;
+		}
+		case 'component.midico.rules': {
+			
+
+			if (!component.rules) {
+				return component;
+			}
+			
+			
+			if(notification.data.rev <= component.rules.rev){
+				console.log("skip")
+				return component
+			}
+			const next_component = {
+				...component,
+				rules : notification.data
+			}
+			return next_component;
+		}
+	}
+	console.log("skipddd")
+	return component;
+}
+
 function MidishNotificationHandler(component, notification){
 	
 	if (!component || !notification) {
@@ -157,7 +209,7 @@ function applyNotification(engine, notification) {
 		};
 	}
 	
-	if(notification.notif.startsWith("component.midish")){
+	else if(notification.notif.startsWith("component.midish")){
 		
 		const components = engine.project?.components;
 		let midish = components?.midish;
@@ -171,6 +223,25 @@ function applyNotification(engine, notification) {
 				components: {
 					...engine.project.components,
 					midish : next_midish,
+				},
+			},
+		};
+	}
+	
+	else if(notification.notif.startsWith("component.midico")){
+		
+		const components = engine.project?.components;
+		let midico = components?.midi_connections;
+		if(!midico) return engine;
+		const next_midico = MidiConnectionsNotificationHandler( midico ,notification);
+		if(!next_midico) return engine;
+		return {
+			...engine,
+			project: {
+				...engine.project,
+				components: {
+					...engine.project.components,
+					midi_connections : next_midico,
 				},
 			},
 		};
@@ -253,6 +324,7 @@ export function useEngineSync() {
 			}
 			
 			if (message.notif === "engine.snapshot") {
+				console.log(message.data)
 				setSnapshot(message.data);
 				return;
 			}
@@ -263,7 +335,6 @@ export function useEngineSync() {
 				console.warn("Ignoring notification before snapshot:", message);
 				return;
 			}
-			
 			applyNotification(message);
 		}
 			
