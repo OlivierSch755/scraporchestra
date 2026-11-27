@@ -59,7 +59,7 @@ export const MidishSeek = memo( ({className})=> {
 			loading:  `Updating transport position`,
 			success:  `Transport position updated`,
 			error: (err) => ({
-				message: `Could update transport position`,
+				message: `Could not update transport position`,
 				description: err.message,
 			}),
 		});
