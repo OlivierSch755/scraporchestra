@@ -1,17 +1,10 @@
 import * as MidishHttp from '@/lib/midish.js';
 
-import { useRef, useState, useEffect, memo } from "react";
+import {  useState, useEffect, memo } from "react";
 import { useEngineStore }  from "@/services/engine";
 import { toast } from 'sonner';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { ScModal } from "@/components/ui/dialog"
 
 import {
   Field,
@@ -33,8 +26,6 @@ import { ButtonGroup } from "@/components/ui/button-group"
 
 
 export const MidishSeek = memo( ({className})=> {
-	
-	const titleRef = useRef(null);
 	
 	const measurePosition = useEngineStore(
 		(state) => state.engine?.project?.components?.midish?.transport?.position?.position?.measure
@@ -86,49 +77,36 @@ export const MidishSeek = memo( ({className})=> {
 			} }>
 				{ `${measurePosition} : ${beatPosition}` }
 			</Button>
-					
-			{/*Dialog*/}
-			<Dialog 
-				open={open}
-				onOpenChange={setOpen}
-			>
-				<DialogContent className="sm:max-w-3xl"  initialFocus={titleRef}>
 				
-					<DialogHeader>
-						<DialogTitle tabIndex={-1} ref={titleRef}>Transport seek</DialogTitle>
-					</DialogHeader>
-					
-					<form onSubmit={onSubmit}>
-						<Field>
-							<FieldLabel htmlFor="Measure">Measure</FieldLabel>
-							<div className="grid grid-cols-4 gap-2">
+			<ScModal 
+				open={open}
+				setOpen={setOpen}
+				header="Transport seek"
+				footer= <Button onClick={onSubmit} className="w-full">Go</Button>
+			>
+				<form onSubmit={onSubmit}>
+					<Field>
+						<FieldLabel htmlFor="Measure">Measure</FieldLabel>
+						<div className="grid grid-cols-4 gap-2">
+						
+							<Input 
+								value={measure}
+								inputMode="numeric"
+								min="0"
+								step="1"
+								onChange={ e => safeSetMeasure(e.target.value) } id="Measure" type="number"
+								className="col-span-4"
+							/>
 							
-								<Input 
-									value={measure}
-									inputMode="numeric"
-									min="0"
-									step="1"
-									onChange={ e => safeSetMeasure(e.target.value) } id="Measure" type="number"
-									className="col-span-4"
-								/>
-								
-								<Button type="button" onClick={e=>safeSetMeasure( v => v - 5 )}>-5</Button>
-								<Button type="button" onClick={e=>safeSetMeasure( v => v - 1 )}>-1</Button>
-								<Button type="button" onClick={e=>safeSetMeasure( v => v + 1 )}>+1</Button>
-								<Button type="button" onClick={e=>safeSetMeasure( v => v + 5 )}>+5</Button>
-								
-							</div>
-						</Field>
-					</form>
-
-					
-					
-				   <DialogFooter>
-					  <Button onClick={onSubmit} className="w-full">Go</Button>
-					</DialogFooter>
-					
-				</DialogContent>
-			</Dialog>
+							<Button type="button" onClick={e=>safeSetMeasure( v => v - 5 )}>-5</Button>
+							<Button type="button" onClick={e=>safeSetMeasure( v => v - 1 )}>-1</Button>
+							<Button type="button" onClick={e=>safeSetMeasure( v => v + 1 )}>+1</Button>
+							<Button type="button" onClick={e=>safeSetMeasure( v => v + 5 )}>+5</Button>
+							
+						</div>
+					</Field>
+				</form>
+			</ScModal>
 		</>
 	);
 })
@@ -137,7 +115,6 @@ export const MidishTempoFactor = memo( ({transport, className}) => {
 	
 	const [open, setOpen] = useState(false);
 	const [tempo, setTempo] = useState(transport.tempo_factor ?? 100);
-	const titleRef = useRef(null);
 
 	const onSubmit = (e)=>{
 		e.preventDefault();
@@ -181,21 +158,15 @@ export const MidishTempoFactor = memo( ({transport, className}) => {
 				{transport.tempo_factor}
 				%
 			</Button>
-					
-			{/*Dialog*/}
-			<Dialog 
+			<ScModal 
 				open={open}
-				onOpenChange={setOpen}
-			>
-				<DialogContent className="sm:max-w-3xl"  initialFocus={titleRef}>
-				
-					<DialogHeader>
-						<DialogTitle tabIndex={-1} ref={titleRef}>Tempo factor</DialogTitle>
-					</DialogHeader>
-					
-					<form onSubmit={onSubmit}>
+				setOpen={setOpen}
+				header="Tempo factor"
+				footer= <Button onClick={onSubmit} className="w-full">Update</Button>
+			>		
+				<form onSubmit={onSubmit}>
 						<Field>
-							<FieldLabel htmlFor="Tempo_factor">%</FieldLabel>
+							<FieldLabel htmlFor="Tempo_factor">Factor (%)</FieldLabel>
 							<div className="grid grid-cols-4 gap-2">
 							
 								<Input 
@@ -215,13 +186,8 @@ export const MidishTempoFactor = memo( ({transport, className}) => {
 							</div>
 						</Field>
 					</form>
-
-				   <DialogFooter>
-					  <Button type="submit" disabled={ tempo === transport.tempo_factor } onClick={onSubmit}>Update</Button>
-					</DialogFooter>
-					
-				</DialogContent>
-			</Dialog>
+			</ScModal>
+		
 		</>
 	);
 	
