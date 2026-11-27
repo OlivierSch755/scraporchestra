@@ -13,32 +13,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input";
 
 import { MidishTransport } from "@/components/sc_components/midishTransport";
+import { MidishTrack, MidishTrackCreation } from "@/components/sc_components/midishTracks";
 
-
-function MidishTrack({track}){
-	
-	const muted = track.flags.includes("mute");
-	
-	function onTrackMuteToggle(){
-		const promise = MidishHttp.toggleTrackMute(track.name, !muted );
-		toast.promise(promise, {
-			loading:  `${muted ? "Un-m" : "M"}uting track ${track.name}...`,
-			success:  `Track ${track.name} ${ muted ? "un-muted" : "muted" }`,
-			error: (err) => ({
-				message: `Could not ${ muted ? "un-mute" : "mute" } track ${track.name}`,
-				description: err.message,
-			}),
-		});
-	}
-	
-	return(
-		<div className="grid grid-cols-[3fr_5em] gap-2 items-center p-2 border">
-			<span>{track.name}</span>
-			<Button onClick={onTrackMuteToggle}>{muted?"un-mute":"mute"}</Button>
-		</div> 
-	);
-	
-}
 
 function MidishSession(){
 	
@@ -72,7 +48,7 @@ function MidishSession(){
 					{ 
 						session.tracks.map( (track)=> <MidishTrack key={track.name} track={track} />	)
 					}
-					<Button>Add Track</Button>
+					<MidishTrackCreation />
 				</div>
 			</div>
 			
@@ -108,8 +84,6 @@ export const  MidishWidget = memo( ()=> {
     const config = useEngineStore(
         (state) => state.engine?.project?.config?.components?.midish
     );
-	
-
 	
 	return (
 		<div className="grid gap-2">

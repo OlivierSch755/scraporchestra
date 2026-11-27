@@ -27,6 +27,20 @@ class TrackController extends MidishSubController{
 		});
 	}	
 
+	async deleteTrack( name ){
+		return this.enqueueOperation(async () => {
+			
+			if (typeof name !== 'string' || !name.trim()) {
+				throw new TypeError("track must have a non-empty name");
+			}
+			
+			await this.#selectTrack(name); // this is very vulnerable to injection
+			await this.sendCheckedCommand(`tdel`);
+			return await this.refreshSessionUnsafe();
+			
+		});
+	}	
+
 	async renameTrack( old_name, new_name ){
 		
 		return this.enqueueOperation(async () => {

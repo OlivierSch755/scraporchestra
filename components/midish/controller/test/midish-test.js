@@ -214,6 +214,12 @@ describe("Track API", { concurrency: false },  () => {
 		
 	})
 	
+
+	it("deletes a track", async()=>{
+		await controller.trackController.deleteTrack(renamed_track);
+		assert.ok( !controller.session.tracks.find( ({name}) => name === renamed_track ) );
+	})
+	
 	
 })
 
@@ -271,7 +277,7 @@ describe("Playback API", { concurrency: false },  () => {
 	})
 	
 	
-	it.only("notifies position change when playing", {timeout: beat_notification_timeout }, async () => {
+	it("notifies position change when playing", {timeout: beat_notification_timeout }, async () => {
 
 		// Increase tempo as much as we can so test is faster
 		const tempo = 240;
@@ -292,7 +298,7 @@ describe("Playback API", { concurrency: false },  () => {
 		
 		const event_count_promises = expectEvents(
 			Dispatcher,
-			'component.midish.transport',
+			'component.midish.position',
 			expected_notifs,
 			timeout
 		);
@@ -320,12 +326,6 @@ describe("Concurrency robustness", { concurrency: false },  () => {
 	});
 
     it("handles concurrent MIDI import and track creation", async () => {
-
-        const midifile_path = path.join(
-            __dirname,
-            "midi_files",
-            "jalouse.mid"
-        );
 
         const results = await Promise.allSettled([
             controller.sessionController.importMidiFile(midifile_path),
