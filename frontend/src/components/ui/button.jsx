@@ -49,6 +49,7 @@ function Button({
   size = "lg",
   ...props
 }) {
+	variant = variant || "outline"
   return (
     <ButtonPrimitive
       data-slot="button"
