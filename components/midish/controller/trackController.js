@@ -4,12 +4,13 @@ const  { parseMetaTrackinfo } = require("./lib/parser.js");
 
 class TrackController extends MidishSubController{
 	
+
 	get metaTrackData(){
 		return this.controller.meta_track;
-	}	
+	}
 	
 	
-	async #selectTrack(track_name){
+	async selectTrackUnsafe(track_name){
 		if( this.session.tracks.some( ({name})=>name === track_name ) === false ){ 
 			throw new Error("track does not exist: "+ track_name);
 		}
@@ -34,12 +35,14 @@ class TrackController extends MidishSubController{
 				throw new TypeError("track must have a non-empty name");
 			}
 			
-			await this.#selectTrack(name); // this is very vulnerable to injection
+			await this.selectTrackUnsafe(name); // this is very vulnerable to injection
 			await this.sendCheckedCommand(`tdel`);
 			return await this.refreshSessionUnsafe();
 			
 		});
 	}	
+
+
 
 	async renameTrack( old_name, new_name ){
 		
@@ -49,7 +52,7 @@ class TrackController extends MidishSubController{
 				throw new TypeError("track must have a non-empty name");
 			}
 			
-			await this.#selectTrack(old_name); // this is very vulnerable to injection
+			await this.selectTrackUnsafe(old_name); // this is very vulnerable to injection
 			await this.sendCheckedCommand(`tren ${new_name}`); // this is very vulnerable to injection
 			return await this.refreshSessionUnsafe();
 			
@@ -76,12 +79,8 @@ class TrackController extends MidishSubController{
 			return await this.refreshSessionUnsafe();
 			
 		});
-		
 	}
 	
-	
-	
-
 	async refreshMetaTrackUnsafe() {
 		const minfo_result = await this.sendCommand("minfo");
 		const parsed = parseMetaTrackinfo( minfo_result.data );

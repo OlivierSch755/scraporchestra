@@ -62,8 +62,9 @@ class MidishController extends ComponentWebController {
 			res.sendStatus(200);
 		});
 		
-		router.post("/api/transport/record", async (req, res) => {
-			await this.instance.controller.transportController.userRecord();
+		router.post("/api/transport/record/:track_name", async (req, res) => {
+			const {track_name} = req.params;
+			await this.instance.controller.transportController.userRecord(track_name);
 			res.sendStatus(200);
 		});
 		

@@ -52,7 +52,14 @@ class TransportController extends MidishSubController{
 		});
 	}
 	
-	async #switchPlayingMode( mode ){
+	async #userSwitchPlayingMode( mode, track_name ){
+		await this.#switchPlayingMode(mode, track_name);
+		this.transportData.mode = mode;
+		this.transportData.increaseRevision();
+		this.transportData.notifyChange();
+	}
+		
+	async #switchPlayingMode( mode, track_name ){
 		
 		if(MODES[mode] === undefined){
 			throw new Error("unknow playing mode: ", mode);
@@ -76,9 +83,13 @@ class TransportController extends MidishSubController{
 				case MODES.PLAY : 
 					command = ()=> this.sendCommand(`p`);
 				break;
-				case MODES.RECORD : 
-					command = ()=> this.sendCommand(`r`);
-				break;
+				case MODES.RECORD : {
+					command = async ()=> {
+						await this.controller.trackController.selectTrackUnsafe(track_name); // only safe because we are in enqueueOperation cb
+						await this.sendCommand(`r`);
+					}
+					break;
+				}
 			}
 		
 			await command();
@@ -93,8 +104,8 @@ class TransportController extends MidishSubController{
 		return this.#userSwitchPlayingMode(MODES.STOP);
 	}
 	
-	async userRecord(){
-		return this.#userSwitchPlayingMode(MODES.RECORD);
+	async userRecord(track_name){
+		return this.#userSwitchPlayingMode(MODES.RECORD, track_name);
 	}
 	
 	async userIdle(){
@@ -162,14 +173,7 @@ class TransportController extends MidishSubController{
 		*/
 	}	
 	
-	
-	async #userSwitchPlayingMode( mode ){
-		await this.#switchPlayingMode(mode);
-		this.transportData.mode = mode;
-		this.transportData.increaseRevision();
-		this.transportData.notifyChange();
-	}
-		
+
 	#_onPositionEvent( position ){
 		// do not propagate data we already know about
 		if( 

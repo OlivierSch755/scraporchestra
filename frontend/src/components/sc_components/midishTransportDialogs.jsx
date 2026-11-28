@@ -19,11 +19,21 @@ import {
   FieldTitle,
 } from "@/components/ui/field"
 
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox"
+
+
 
 import {Input} from  "@/components/ui/input"
 import {Button} from  "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
-
+import { Circle } from "lucide-react";
 
 export const MidishSeek = memo( ({className})=> {
 	
@@ -66,8 +76,6 @@ export const MidishSeek = memo( ({className})=> {
 		setOpen(false);
 	}
 	
-	
-	
 	return (
 		<>
 			<Button className={className}
@@ -106,6 +114,106 @@ export const MidishSeek = memo( ({className})=> {
 						</div>
 					</Field>
 				</form>
+			</ScModal>
+		</>
+	);
+})
+
+export const MidishArmRecordingMode = memo( ({className, variant})=> {
+	
+	const tracks = useEngineStore(
+		(state) => state.engine?.project?.components?.midish?.session?.tracks
+	);
+
+	const [armedTrack, setArmedTrack] = useState( null );
+	const [open, setOpen] = useState(false);
+	
+	useEffect( ()=>{
+		if ( tracks.length === 1 ){
+			setArmedTrack(tracks[0].name);
+		}
+		else if ( !tracks.some(track => track.name === armedTrack ) ){
+			setArmedTrack(null);
+		}
+	}, [tracks] );
+	
+
+	const onRecord = (e)=>{
+		e.preventDefault();
+		const promise = MidishHttp.transport_record(armedTrack).then( x=> setOpen(false) )
+		toast.promise(promise, {
+			loading:  `Starting record`,
+			success:  `Recording started`,
+			error: (err) => ({
+				message: `Could not start recording`,
+				description: err.message,
+			}),
+		});
+	}
+	
+	const safeSetArmedTrack = (val) => {
+		
+		setArmedTrack(prev => {
+			const next = String(
+				typeof val === "function" ? val(prev) : val
+			);
+			
+			if (!next || !tracks.some(track => track.name === next ) ) {
+				return null;
+			}
+
+			return next;
+		});
+	};
+	
+	return (
+		<>
+			<Button 
+				className={className}
+				variant={variant}
+				onClick={ e => {
+				setOpen(true);
+				
+			} }>
+				<Circle/>
+			</Button>
+
+				
+				
+			<ScModal 
+				open={open}
+				setOpen={setOpen}
+				header="Configure recording mode"
+				footer= <Button type="submit "form="midish_recording_track_form" disabled={tracks.length === 0} className="w-full">Start recording</Button>
+			>
+			
+				{ tracks.length > 0 && 
+					<form onSubmit={onRecord} id="midish_recording_track_form">
+						<Field>
+							<FieldLabel htmlFor="midish_recording_track">Record on track</FieldLabel>
+							<Combobox items={tracks.map(track=>track.name)} onValueChange={safeSetArmedTrack} value={armedTrack}>
+								<ComboboxInput placeholder="Select a track for recording MIDI" id="midish_recording_track" required />
+								<ComboboxContent>
+									<ComboboxList>
+										{(item) => (
+											<ComboboxItem key={item} value={item}>
+												{item}
+											</ComboboxItem>
+									)}
+									</ComboboxList>
+								</ComboboxContent>
+							</Combobox>
+						</Field>
+					</form>
+				}	
+				{ tracks.length === 0 && 
+					<>
+						Recording must happen on a <b>track</b> but current session has none. 
+						Please create at least one track before recording MIDI events. 
+					</>
+				}	
+			
+				
 			</ScModal>
 		</>
 	);

@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 import { ScModal } from "@/components/ui/dialog"
 
-import { LetterM, Settings, Save, Trash } from "lucide-react";
+import { LetterM, Settings, Save, Trash, Circle } from "lucide-react";
 
 import {
   Field,
@@ -21,6 +21,15 @@ import {
   FieldTitle,
 } from "@/components/ui/field"
 
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox"
+
 
 import {Input} from  "@/components/ui/input"
 import {Button} from  "@/components/ui/button"
@@ -29,11 +38,12 @@ import { ButtonGroup } from "@/components/ui/button-group"
 export function MidishTrack({track}){
 	
 	const muted = track.flags.includes("mute");
+	const armedForRecording = false;
 	
-	function onTrackMuteToggle(){
-		const promise = MidishHttp.toggleTrackMute(track.name, !muted );
+	function onMuteToggle(){
+		const promise = MidishHttp.toggle_track_mute(track.name, !muted );
 		toast.promise(promise, {
-			loading:  `${muted ? "Un-m" : "M"}uting track ${track.name}...`,
+			loading:  `${muted ? "Un-m" : "M"}uting track ${track.name}`,
 			success:  `Track ${track.name} ${ muted ? "un-muted" : "muted" }`,
 			error: (err) => ({
 				message: `Could not ${ muted ? "un-mute" : "mute" } track ${track.name}`,
@@ -43,16 +53,17 @@ export function MidishTrack({track}){
 	}
 	
 	return(
-		<div className="grid grid-cols-[3fr_auto_auto] gap-2 items-center p-2 border">
+		<div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center p-2 border">
 			<span>{track.name}</span>
 			<MidishTrackEdition track={track} />
+
 			<Button 
 				aria-label={
-					`${muted?"Un-m":"M"}ute track ${track.nam}` 
+					`${muted?"Un-m":"M"}ute track ${track.name}` 
 				}
 				title={`${muted?"Un-m":"M"}ute`}
-				onClick={onTrackMuteToggle}
-				variant={muted ? "selected" : "outline"}
+				onClick={onMuteToggle}
+				variant={muted && "selected"}
 			>
 				<LetterM />
 			</Button>
@@ -81,10 +92,33 @@ const MidishTrackNameInput = memo( ({className, defaultValue, placeholder, onCha
 	);
 })
 
+
+const MidishTrackFilterSelector = memo( ({className, filter, onChange})=> {
+	
+	const dummy_filters = [" NONE", "some_filter", "some_other_filter"];
+	const filters = dummy_filters ;
+	return (
+	<Combobox items={filters} onValueChange={onChange} value={filter}>
+		<ComboboxInput placeholder="Select a filter" />
+		<ComboboxContent>
+			<ComboboxList>
+				{(item) => (
+					<ComboboxItem key={item} value={item} className={item === " NONE" && "italic font-medium"}>
+						{item}
+					</ComboboxItem>
+			)}
+			</ComboboxList>
+		</ComboboxContent>
+	</Combobox>
+	)
+	
+} )
+
 const MidishTrackEdition = memo( ({className, track})=> {
 	
 	const [open, setOpen] = useState(false);
 	const [trackName, setTrackName] = useState(track.name);
+	const [filter, setFilter] = useState(track.filter);
 
 	async function onRename(e){
 		e.preventDefault();
@@ -111,6 +145,21 @@ const MidishTrackEdition = memo( ({className, track})=> {
 			}),
 		});
 	}
+	
+	async function onFilterSelect(e){
+		e.preventDefault();
+		const promise = MidishHttp.select_filter( track.name, filter );
+		toast.promise(promise, {
+			loading:  `Assigning input filter ${filter} to track ${track.name}`,
+			success:  `Input filter ${filter} assigned to track ${track.name}`,
+			error: (err) => ({
+				message: `Could not assign input filter ${filter} to track ${track.name}`,
+				description: err.message,
+			}),
+		});
+	}
+	
+	
 	
 	return (
 		<>
@@ -143,6 +192,20 @@ const MidishTrackEdition = memo( ({className, track})=> {
 							</Button>
 						</div>
 					</form>
+					
+					<form onSubmit={onFilterSelect}>
+						<div className="flex gap-2">
+							<FieldLabel htmlFor="midish_track_filter">Input filter</FieldLabel>
+							<div className="grow">
+								<MidishTrackFilterSelector filter={filter} onChange={setFilter} />
+							</div>
+							<Button type="submit" disabled={filter === track.filter} aria-label={`Update track ${track.name} input filter`}>
+								<Save />
+							</Button>
+						</div>
+					</form>
+					
+					
 					
 					<form onSubmit={onDelete}>
 						<div className="flex gap-2 items-center justify-between">
@@ -190,10 +253,10 @@ export const MidishTrackCreation = memo( ({className})=> {
 				open={open}
 				setOpen={setOpen}
 				header="Create a MIDI track"
-				footer= <Button onClick={onSubmit} className="w-full">Create</Button>
+				footer= <Button type="submit" form="midish_create_track_form" className="w-full">Create</Button>
 			>
 			
-				<form onSubmit={onSubmit}>
+				<form onSubmit={onSubmit} id="midish_create_track_form">
 					<div className="flex gap-2">
 						<FieldLabel htmlFor="midish_new_track_name">Name</FieldLabel>
 						<div className="grow">

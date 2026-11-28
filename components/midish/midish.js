@@ -31,7 +31,7 @@ class Midish extends Component{
 	
 	constructor( config, project, name ){
 		
-		super(project, config, name); // will populate this.project 
+		super(project, config, "midish"); // will populate this.project 
 		this.config = config;
 		this.session_path = path.join(project.dir, session_filename);
 	}

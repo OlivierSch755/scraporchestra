@@ -4,7 +4,7 @@ import * as MidishHttp from '@/lib/midish.js';
 import { useEngineStore }  from "@/services/engine";
 import Modes from 'midish/playing_modes_json';
 
-import { MidishSeek, MidishTempoFactor } from "@/components/sc_components/midishTransportDialogs";
+import { MidishSeek, MidishTempoFactor, MidishArmRecordingMode } from "@/components/sc_components/midishTransportDialogs";
 
 import { ButtonGroup } from "@/components/ui/button-group"
 import { Button } from "@/components/ui/button"
@@ -108,31 +108,18 @@ function MidishTransportControls({className, transport}){
 		});
 	}
 
-	const onRecord = ()=>{
-		const promise = MidishHttp.transport_record();
-		toast.promise(promise, {
-			loading:  `Starting record...`,
-			success:  `Recording started`,
-			error: (err) => ({
-				message: `Could not start recording`,
-				description: err.message,
-			}),
-		});
-	}
-	
 	return(
 		<ButtonGroup className={className} >
 		
-			<Button
-				aria-label="Record"
-				variant={ transport.mode === Modes.RECORD ? 'destructive' : 'outline' }
-				onClick={onRecord}
+	
+			<MidishArmRecordingMode 
+				variant={ transport.mode === Modes.RECORD && 'destructive'}
 				disabled={ 
 					/*  disable when playing or recording  */
 					transport.mode === Modes.RECORD 
 					|| transport.mode === Modes.PLAY 
 				}
-			><Record/></Button>
+			/>
 			
 			<Button
 				aria-label="Play"
@@ -143,6 +130,9 @@ function MidishTransportControls({className, transport}){
 					|| transport.mode === Modes.PLAY 
 				}
 			> <Play/> </Button>
+			
+			
+			
 			
 			<Button
 				aria-label="Pause"

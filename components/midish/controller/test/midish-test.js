@@ -227,7 +227,8 @@ describe("Playback API", { concurrency: false },  () => {
 	
 	let controller;
 	let rev_before;
-		
+	let track_name_for_recording = "rec_track";
+	
 	const beat_notification_timeout = 3000;	
 		
 	function assertRevisionIncreased(){
@@ -249,6 +250,7 @@ describe("Playback API", { concurrency: false },  () => {
 	before(async () => {
 		controller = new MidishController();
 		await controller.init();
+		await controller.trackController.createTrack(track_name_for_recording);
 		rev_before = controller.transport.rev;
 	});
 	
@@ -266,7 +268,7 @@ describe("Playback API", { concurrency: false },  () => {
 		assertRevisionIncreased();
 		assertMode( playing_modes.IDLE );
 
-		await controller.transportController.userRecord()
+		await controller.transportController.userRecord(track_name_for_recording)
 		assertRevisionIncreased();
 		assertMode( playing_modes.RECORD );
 				
