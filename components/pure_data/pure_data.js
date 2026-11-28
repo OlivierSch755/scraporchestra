@@ -50,13 +50,11 @@ class PureData extends ComponentProcess{
 	
 	constructor( config, project ){
 		
-		super(project); // will populate this.project 
+		super(config, project, "pd"); // will populate this.project 
 		
 		this.midiindev = config?.midiindev;
 		this.midioutdev = config?.midioutdev;
 		this.abstractions_path = config?.abstractions_path;
-		
-		this.config = config;
 		
 		// this is really hacky. 
 		// write this.config when project tries to JSON.stringify project config object

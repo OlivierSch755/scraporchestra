@@ -90,7 +90,7 @@ class Sushi extends ComponentProcess{
 	
 	constructor( config, project, name ){
 		
-		super(config, project, name); // will populate this.project 
+		super(config, project, "sushi"); // will populate this.project 
 		
 		this.driver = config?.driver ?? "-r";
 		this.osc_ip = config?.osc_ip ?? "127:0:0:1";

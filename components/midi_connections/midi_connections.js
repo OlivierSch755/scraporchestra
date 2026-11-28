@@ -22,9 +22,11 @@ class MidiConnections extends ComponentProcess{
 	all_rules_ok = false;
 	static bin = path.resolve( path.join( __dirname, "bin", "alsa_watch" ) );
 	
-	
 	constructor( config, project, name ){
-		super( config, project, name ); // will populate this.project and this.config
+		
+		// will populate this.project and this.config
+		// also the name handling is not terrible ...
+		super( config, project, "midi_connections" ); 
 		
 		const rules = config?.rules 
 			? config.rules.map( raw_rule => Rule.fromJSON( raw_rule ) ) 
